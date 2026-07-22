@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendance Enterprise System</title>
+    <meta name="description" content="Hệ thống chấm công tích hợp thông minh ZKTeco, Sunbeam &amp; Hikvision" />
+    <link rel="stylesheet" href="/styles.css?v=1784290000" />
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- face-api.js (Local & Fallback) -->
+    <script src="/face-api.min.js?v=1784290000"></script>
+    <!-- i18n must load before app.js -->
+    <script src="/i18n.js?v=1784287000"></script>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Login View -->
+      <section id="loginView" class="auth-view active">
+        <div class="auth-card">
+          <div class="auth-header">
+            <h1 data-i18n="loginTitle">Attendance System</h1>
+            <p data-i18n="loginSubtitle">Hệ thống chấm công tích hợp thông minh ZKTeco, Sunbeam &amp; Hikvision</p>
+          </div>
+          <form id="loginForm" class="auth-form" onsubmit="if (window.onLogin) { window.onLogin(event); } return false;">
+            <label>
+              <span data-i18n="labelUsername">Tên đăng nhập</span>
+              <input id="username" type="text" value="admin" required data-i18n-placeholder="placeholderUsername" placeholder="Nhập tài khoản" />
+            </label>
+            <label>
+              <span data-i18n="labelPassword">Mật khẩu</span>
+              <input id="password" type="password" value="admin123" required data-i18n-placeholder="placeholderPassword" placeholder="Nhập mật khẩu" />
+            </label>
+            <button type="submit" class="primary-btn" data-i18n="btnLogin">Đăng nhập</button>
+            <p id="loginMessage" class="message error"></p>
+          </form>
+        </div>
+      </section>
+
+      <!-- Main Application Shell -->
+      <div id="mainApp" class="app-shell hidden">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-icon">⏱</div>
+            <div>
+              <h2>Attendance</h2>
+              <span>Enterprise Console</span>
+            </div>
+          </div>
+          <div class="sidebar-user">
+            <div class="sidebar-user-info">
+              <span data-i18n="loggedInAs">Đăng nhập bởi</span>
+              <strong id="currentUser">Admin</strong>
+            </div>
+            <button id="logoutBtn" class="logout-btn" data-i18n="btnLogout">🚪 Đăng xuất</button>
+          </div>
+          <nav class="nav-list">
+            <button class="nav-item active" data-view="dashboard" data-i18n="navDashboard">📊 Tổng quan</button>
+            <button class="nav-item" data-view="devices" data-i18n="navDevices">🖥 Thiết bị</button>
+            <button class="nav-item" data-view="employees" data-i18n="navEmployees">👤 Nhân viên</button>
+            <button class="nav-item" data-view="shifts" data-i18n="navShifts">📅 Ca &amp; Gán ca</button>
+            <button class="nav-item" data-view="ess" data-i18n="navESS">📋 Đơn từ &amp; ESS</button>
+            <button class="nav-item" data-view="attendance" data-i18n="navAttendance">📝 Chấm công</button>
+            
+            <button class="nav-item" data-view="reports" data-i18n="navReports">📈 Báo cáo tháng</button>
+            <button class="nav-item" data-view="audit" data-i18n="navAudit">📜 Nhật ký hệ thống</button>
+            <button class="nav-item" data-view="sync" data-i18n="navSync">🔄 Đồng bộ</button>
+            <button class="nav-item" data-view="settings" data-i18n="navSettings">⚙️ Cài đặt</button>
+          </nav>
+        </aside>
+
+        <main class="main-panel">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" data-i18n="systemLabel">Hệ thống điều hành</p>
+              <h3 id="pageTitle">Tổng quan</h3>
+            </div>
+            <div class="topbar-actions">
+              <div class="status-pill online" data-i18n="systemOnline"> Hệ thống đang chạy</div>
+              <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="Chuyển giao diện Sáng / Tối">☀️ Sáng</button>
+              <button id="langToggleBtn" class="lang-toggle-btn" onclick="toggleLanguage()" title="Switch to English">🌐 EN</button>
+              <button class="primary-btn" id="refreshBtn" data-i18n="btnRefresh">Làm mới</button>
+            </div>
+          </header>
+
+          <!-- Cập nhật ngay khi máy chấm công nhận diện một vân tay. -->
+          <section id="lastScanCard" class="last-scan-card is-waiting" aria-live="polite">
+            <div class="last-scan-top-row">
+              <div id="lastScanAvatar" class="last-scan-avatar" aria-hidden="true">🖐</div>
+              <div class="last-scan-main">
+                <div class="last-scan-heading">
+                  <span class="last-scan-indicator"></span>
+                  <span id="lastScanLabel">Người vừa điểm danh</span>
+                </div>
+                <strong id="lastScanName">Đang chờ lượt quét...</strong>
+                <span id="lastScanCode" class="last-scan-code">Thông tin sẽ tự động cập nhật từ hệ thống</span>
+              </div>
+              <div class="last-scan-result">
+                <span id="lastScanType" class="last-scan-type waiting">Chờ quét</span>
+                <strong id="lastScanTime">—</strong>
+                <span id="lastScanDevice">Chưa có thiết bị</span>
+              </div>
+            </div>
+            
+            <!-- ĐẦY ĐỦ TOÀN BỘ THÔNG TIN NHÂN VIÊN (KHÔNG SÓT TRƯỜNG NÀO) -->
+            <div id="lastScanDetailsGrid" class="last-scan-details-grid">
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipDept">🏢 Phòng ban:</span>
+                <strong id="scanDept" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipJob">💼 Chức vụ:</span>
+                <strong id="scanJob" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipPhone">📞 Điện thoại:</span>
+                <strong id="scanPhone" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipEmail">✉️ Email:</span>
+                <strong id="scanEmail" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipCardNo">💳 Mã thẻ từ:</span>
+                <strong id="scanCardNo" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipGender">👤 Giới tính:</span>
+                <strong id="scanGender" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipDob">🎂 Ngày sinh:</span>
+                <strong id="scanDob" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipJoinDate">📅 Ngày vào làm:</span>
+                <strong id="scanJoinDate" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipZalo">💬 Zalo ID:</span>
+                <strong id="scanZalo" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipFingerprint">🖐 Vân tay:</span>
+                <strong id="scanFpStatus" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipFace">📷 Khuôn mặt:</span>
+                <strong id="scanFaceStatus" class="chip-val">—</strong>
+              </div>
+              <div class="scan-detail-chip">
+                <span class="chip-label" data-i18n="chipStatus">🟢 Trạng thái:</span>
+                <strong id="scanEmpStatus" class="chip-val">—</strong>
+              </div>
+            </div>
+          </section>
+
+          <section id="dashboardView" class="view active">
+            <div class="stats-grid">
+              <article class="stat-card">
+                <h4 data-i18n="statDevices">Thiết bị</h4>
+                <p id="deviceCount">0</p>
+                <span data-i18n="statDevicesSub">Đã kết nối</span>
+              </article>
+              <article class="stat-card">
+                <h4 data-i18n="statEmployees">Nhân viên</h4>
+                <p id="employeeCount">0</p>
+                <span data-i18n="statEmployeesSub">Trong hệ thống</span>
+              </article>
+              <article class="stat-card">
+                <h4 data-i18n="statAttendance">Chấm công hôm nay</h4>
+                <p id="attendanceCount">0</p>
+                <span data-i18n="statAttendanceSub">Bản ghi thô</span>
+              </article>
+              <article class="stat-card">
+                <h4 data-i18n="statSync">Đồng bộ</h4>
+                <p id="syncCount">0</p>
+                <span data-i18n="statSyncSub">Lịch sử🔄 Đồng bộ</span>
+              </article>
+            </div>
+
+            <div class="content-grid two-col" style="margin-top: 20px;">
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="chartTodayTitle">Biểu đồ chuyên cần hôm nay</h3>
+                </div>
+                <div style="position: relative; height: 260px; display: flex; justify-content: center; align-items: center;">
+                  <canvas id="todayAttendanceChart" style="max-height: 240px; max-width: 240px;"></canvas>
+                </div>
+              </article>
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="chartWeeklyTitle">Lịch sử chấm công hàng ngày (7 ngày qua)</h3>
+                </div>
+                <div style="position: relative; height: 260px;">
+                  <canvas id="weeklyAttendanceChart"></canvas>
+                </div>
+              </article>
+            </div>
+
+            <div class="content-grid two-col" style="margin-top: 20px;">
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="recentDevicesTitle">Thiết bị gần đây</h3>
+                  <button class="ghost-btn" data-view="devices" data-i18n="viewAll">Xem tt c</button>
+                </div>
+                <div id="recentDevices" class="list"></div>
+              </article>
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="recentSyncTitle">Đồng bộ gần đây</h3>
+                  <button class="ghost-btn" data-view="sync" data-i18n="viewHistory">Xem lịch sử</button>
+                </div>
+                <div id="recentSync" class="list"></div>
+              </article>
+            </div>
+          </section>
+
+                    <!-- Modal Popup Chấm công Camera Real-time -->
+<div id="faceScanModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="width: min(880px, 95%); padding: 24px;">
+    <button class="modal-close" id="closeFaceScanModalBtn">✕</button>
+    <div class="modal-header" style="margin-bottom: 16px;">
+      <h3>📷 Quét khuôn mặt chấm công</h3>
+    </div>
+    <div class="content-grid two-col" style="gap: 16px;">
+      <!-- Cột trái: Camera Stream và điều khiển -->
+      <article class="panel" style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px; position: relative;">
+        <div class="panel-header" style="width: 100%; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 0;">
+          <h4 style="margin: 0; font-size: 1rem;">📹 Camera quét</h4>
+          <span class="status-pill offline" id="cameraStatusPill">● Camera đã tắt</span>
+        </div>
+        
+        <div class="camera-wrapper" id="faceCameraWrapper" style="position: relative; width: 100%; max-width: 380px; aspect-ratio: 4/3; border-radius: 12px; overflow: hidden; border: 3px solid var(--border); background: #0c0f16; box-shadow: 0 0 20px rgba(0,0,0,0.5); transition: all 0.3s ease;">
+          <video id="faceVideo" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+          <canvas id="faceOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none;"></canvas>
+          <div class="scanner-laser" id="scannerLaser" style="display: none; position: absolute; left: 0; width: 100%; height: 4px; background: linear-gradient(to right, transparent, #10B981, transparent); opacity: 0.8; z-index: 10;"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; width: 100%; max-width: 380px; justify-content: center;">
+          <button id="startCameraButton" class="primary-btn" style="flex: 1; height: 40px; background: linear-gradient(135deg, #10B981, #059669); border-color: #10B981; font-weight: 600;">📷 Bật Camera</button>
+          <button id="stopCameraButton" class="secondary-btn" style="flex: 1; height: 40px; font-weight: 600;" disabled>⏹ Tắt Camera</button>
+        </div>
+      </article>
+
+      <!-- Cột phải: Lịch sử quét trong phiên -->
+      <article class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 20px;">
+        <div class="panel-header" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 0;">
+          <h4 style="margin: 0; font-size: 1rem;">📋 Lượt vừa quét</h4>
+          <span style="font-size: 0.8rem; color: var(--muted);" id="registeredFacesCount">Đã nạp 0 khuôn mặt</span>
+        </div>
+
+        <div class="attendance-table-container" style="flex-grow: 1; overflow-y: auto; max-height: 320px; width: 100%;">
+          <table class="data-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Nhân viên</th>
+                <th>Mã NV</th>
+                <th>Thời gian</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="faceAttendanceLogBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--muted); padding: 30px 0;">Chưa có lượt điểm danh nào trong phiên này</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </div>
+</div>
+
+<!-- Popup Chào mừng nhận diện thành công (Glassmorphism overlay) -->
+<div id="faceMatchToast" style="display: none; position: fixed; bottom: 30px; right: 30px; background: rgba(16, 185, 129, 0.15); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 20px; width: 340px; z-index: 9999; animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto;">
+  <div style="display: flex; align-items: center; gap: 16px;">
+    <div id="toastAvatar" style="width: 60px; height: 60px; border-radius: 50%; background: #059669; border: 2px solid #10B981; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">👤</div>
+    <div style="flex-grow: 1;">
+      <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #10B981; font-weight: 700; display: block; margin-bottom: 2px;">Điểm danh thành công</span>
+      <strong style="font-size: 1.1rem; color: var(--text); display: block;" id="toastName">Nguyn Vn A</strong>
+      <span style="font-size: 0.85rem; color: var(--muted);" id="toastCode">NV001</span>
+    </div>
+  </div>
+  <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+    <span style="font-size: 0.8rem; color: var(--muted);" id="toastTime">12:34:56</span>
+    <span style="font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.2); color: #34D399; font-weight: 600;">IN</span>
+  </div>
+</div>
+
+          <!-- Devices View -->
+          <section id="devicesView" class="view">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 data-i18n="deviceListTitle">Danh sách thiết bị</h3>
+                <button id="openNewDeviceModalBtn" class="primary-btn" data-i18n="btnAddDevice">+ Thêm thiết bị</button>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center; margin:10px 0;">
+                <select id="toolbarBackupSourceSelect" class="form-input" style="min-width:320px; height:48px; font-size:0.95rem; padding:6px 10px;">
+                  <option value="" data-i18n="optSelectSource">-- Chọn nguồn sao chép --</option>
+                </select>
+                <select id="toolbarBackupTargetSelect" class="form-input" style="min-width:320px; height:48px; font-size:0.95rem; padding:6px 10px;">
+                  <!-- targets -->
+                </select>
+                <button id="toolbarBackupBtn" class="secondary-btn" style="height:48px;" data-i18n="btnCopy">⚡ Sao chép</button>
+              </div>
+              <div class="search-container">
+                <input id="deviceSearch" type="text" data-i18n-placeholder="placeholderDeviceSearch" placeholder="Tìm thiết bị (tên, IP, loại)..." class="search-input" />
+              </div>
+              <div id="deviceMessage" class="message"></div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="thDeviceName">Tên thiết bị</th>
+                    <th data-i18n="thDeviceType">Loi / Firmware</th>
+                    <th data-i18n="thDeviceIp">IP / MAC Address</th>
+                    <th data-i18n="thDeviceLastActive">Hot ng cui</th>
+                    <th data-i18n="thDeviceStatus">Trạng thái</th>
+                    <th data-i18n="thDeviceAction">Hành động</th>
+                  </tr>
+                    <th style="width:40px"></th>
+                </thead>
+                <tbody id="deviceTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Employees View -->
+          <section id="employeesView" class="view">
+            <div class="panel">
+              <div class="panel-header" style="margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+                <h3 data-i18n="employeeListTitle">Danh sách nhân viên</h3>
+              </div>
+
+              <!-- Thanh công cụ tối ưu hóa mới (Toolbar Row) -->
+              <div class="toolbar-row">
+                <!-- Group bên trái: Thêm nhân viên & Đồng bộ -->
+                <div class="toolbar-group">
+                  <button id="openNewEmployeeModalBtn" class="primary-btn" data-i18n="btnAddEmployee">+ Thêm nhân viên</button>
+                  <button id="openFaceScanModalBtn" type="button" class="secondary-btn" style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.25)); border-color: #10B981; color: #10B981; font-weight: 600; height: 44px; display: inline-flex; align-items: center; gap: 6px;">📷 Chấm công Camera</button>
+                  <button id="deleteAllEmployeesBtn" type="button" class="secondary-btn employee-delete-all-btn" data-i18n="btnDeleteAllEmployees" title="Xóa toàn bộ nhân viên khỏi hệ thống">🗑 Xóa tất cả nhân viên</button>
+                  <button id="pullFromDeviceBtn" type="button" class="secondary-btn" title="Kéo nhân viên và trạng thái vân tay từ máy chấm công" hidden aria-hidden="true" style="display: none;">📥 Kéo NV từ máy</button>
+                  <div style="display: inline-flex; align-items: center; gap: 8px; margin-left: 4px;">
+                    <button id="batchEnrollAllBtn" type="button" class="secondary-btn" data-i18n="titleBatchEnrollAll" data-i18n-attr="title"><span data-i18n="btnBatchEnrollAll">🖐 Quét VT hàng loạt</span></button>
+                    <button id="batchEnrollBtn" type="button" class="secondary-btn" data-i18n="titleBatchEnroll" data-i18n-attr="title"><span id="batchEnrollBtnText" data-i18n="btnBatchEnroll">🖐 Chọn để quét</span></button>
+                    <select id="stopBatchEnrollDeviceSelect" class="form-input" style="min-width: 180px; height: 44px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0 10px;">
+                      <option value="" data-i18n="optSelectDevice">-- Chọn thiết bị --</option>
+                    </select>
+                    <button id="stopBatchEnrollBtn" type="button" class="secondary-btn" style="color: var(--danger); border-color: var(--danger);" data-i18n="titleStopBatchEnroll" data-i18n-attr="title"><span data-i18n="btnStopBatchEnroll">🛑 Dừng quét</span></button>
+                  </div>
+                  
+                  <!-- Dropdown🔄 Đồng bộ Thiết bị (ADMS) -->
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <select id="syncDeviceSelect" class="form-input" style="min-width:260px; height:44px;">
+                      <option value="" data-i18n="optSelectDeviceSync">-- Chọn thiết bị 🔄 Đồng bộ --</option>
+                    </select>
+                    <button id="pushAllNowBtn" type="button" class="secondary-btn" data-i18n="titlePushAllNow" data-i18n-attr="title"><span data-i18n="btnPushAllNow">📤 Đẩy tất cả xuống máy</span></button>
+                    <button id="pullFromDeviceNowBtn" type="button" class="secondary-btn" data-i18n="titlePullFromDeviceNow" data-i18n-attr="title"><span id="pullFromDeviceNowBtnText" data-i18n="btnPullFromDeviceNow">📥 Kéo NV từ máy</span></button>
+                  </div>
+                </div>
+
+                <!-- Group bên phải: Tìm kiếm & Import Excel -->
+                <div class="toolbar-group" style="flex-grow: 1; justify-content: flex-end;">
+                  <input id="employeeSearch" type="text" data-i18n-placeholder="placeholderEmployeeSearch" placeholder="Tìm nhân viên (tên, mã, bộ phận)..." class="search-input" style="max-width: 280px; margin: 0; height: 44px;" />
+                  
+                  <div class="import-panel" style="margin: 0; display: inline-flex; gap: 8px;">
+                    <input id="employeeFileInput" type="file" accept=".xlsx" style="display: none;" />
+                    <button type="button" onclick="document.getElementById('employeeFileInput').click()" class="secondary-btn" data-i18n="btnSelectExcel" style="height: 44px; display: flex; align-items: center; gap: 6px;"> Chọn Excel</button>
+                    <button id="importEmployeesBtn" class="primary-btn" style="padding: 10px 14px; height: 44px; display: none;" data-i18n="btnImport">Import</button>
+                  </div>
+                </div>
+              </div>
+              <div id="employeeMessage" class="message"></div>
+              <table class="data-table" id="employeeTable">
+                <thead>
+                  <tr>
+                    <th data-i18n="thEmpCode">Mã NV</th>
+                    <th data-i18n="thEmpInfo">Thông tin nhân viên</th>
+                    <th data-i18n="thEmpJobDept">Chức vụ / PhòĐồng bộan</th>
+                    <th data-i18n="thEmpJoinDate">Ngày tham gia</th>
+                    <th>Vân tay / Khuôn mặt</th>
+                    <th data-i18n="thEmpStatus">Trạng thái</th>
+                    <th data-i18n="thEmpAction">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="employeeTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Attendance View -->
+          <section id="attendanceView" class="view">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 data-i18n="attendanceTitle">Dữ liệu chấm công</h3>
+                <button class="ghost-btn" id="loadAttendanceBtn" data-i18n="btnLoad" title="Kết nối trực tiếp tới máy và lấy log chấm công qua SDK">Lấy qua SDK</button>
+              </div>
+              <div class="filter-row">
+                <label>
+                  <span data-i18n="labelFrom">Từ ngày</span>
+                  <input id="attendanceFrom" type="date" />
+                </label>
+                <label>
+                  <span data-i18n="labelTo">Đến ngày</span>
+                  <input id="attendanceTo" type="date" />
+                </label>
+                <label>
+                  <span data-i18n="labelFilterCode">Mã nhân viên</span>
+                  <input id="attendanceCode" data-i18n-placeholder="placeholderEmployeeCode" placeholder="NV001" />
+                </label>
+                <button class="primary-btn" id="applyAttendanceBtn" style="align-self: flex-end; height: 46px;" data-i18n="btnApplyDate">Áp dụng</button>
+                <button class="secondary-btn" id="processAttendanceBtn" style="align-self: flex-end; height: 46px; background: var(--accent); color: white;" data-i18n="btnProcessAttendance">⚡ Tính công</button>
+              </div>
+              <div id="attendanceMessage" class="message"></div>
+              <div class="attendance-section-tabs" role="tablist" aria-label="Attendance detail sections">
+                <button id="showAttendanceSummaryBtn" type="button" class="attendance-section-tab active" role="tab" aria-selected="true" data-i18n="attendanceSummaryTab">📊 Tóm tắt công</button>
+                <button id="showAttendanceRawBtn" type="button" class="attendance-section-tab" role="tab" aria-selected="false" data-i18n="attendanceRawTab">🧾 Log chấm công thô</button>
+              </div>
+              <div id="attendanceSummarySection" class="attendance-detail-section">
+                <div class="summary-card">
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem;" data-i18n="attendanceSummaryTitle">Tóm tắt công hàng ngày (Daily Attendance)</h4>
+                <table class="data-table compact">
+                  <thead>
+                    <tr>
+                      <th data-i18n="thSumEmp">Nhân viên</th>
+                      <th data-i18n="thSumDateShift">Ngày / Ca</th>
+                      <th data-i18n="thSumFirstInLastOut">Giờ Vào / Ra</th>
+                      <th data-i18n="thSumLateEarly">i mun / V sm</th>
+                      <th data-i18n="thSumRegularHours">Gi thng</th>
+                      <th data-i18n="thSumOT">Tng ca (OT)</th>
+                      <th data-i18n="thSumLeave">Nghỉ phép</th>
+                      <th data-i18n="thSumTotalStatus">Tổng trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceSummaryBody"></tbody>
+                </table>
+                </div>
+              </div>
+              
+              <div id="attendanceRawSection" class="attendance-detail-section hidden">
+                <h4 style="margin-bottom: 12px; font-size: 1.1rem;" data-i18n="attendanceRawTitle">Log chấm công thô từ thiết bị (Raw Logs)</h4>
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th data-i18n="thAttEmp">Nhân viên</th>
+                      <th data-i18n="thAttDate">Thời gian</th>
+                      <th data-i18n="thAttScanType">Lần Quét</th>
+                      <th data-i18n="thAttDevice">Thiết bị</th>
+                      <th data-i18n="thAttValidity">Kim tra Gi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- Sync History View -->
+          <section id="syncView" class="view">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 data-i18n="syncTitle">Lịch sử🔄 Đồng bộ</h3>
+                <button id="syncNowBtn" class="primary-btn" data-i18n="btnSyncNow">🔄 Đồng bộ ngay</button>
+              </div>
+              <div id="syncMessage" class="message"></div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="thSyncDevice">Thiết bị</th>
+                    <th data-i18n="thSyncType">Loi</th>
+                    <th data-i18n="thSyncTrigger">Kích hoạt</th>
+                    <th data-i18n="thSyncStatus">Trạng thái</th>
+                    <th data-i18n="thSyncRecords">S bn ghi</th>
+                  </tr>
+                </thead>
+                <tbody id="syncTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Shifts & Assignment View -->
+          <section id="shiftsView" class="view">
+            <div class="content-grid two-col">
+              <!-- Quản lý Ca -->
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="shiftTitle">Quản lý Ca làm việc</h3>
+                  <button id="openNewShiftModalBtn" class="primary-btn" data-i18n="btnAddShift">+ To ca</button>
+                </div>
+                <div id="shiftMessage" class="message"></div>
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th data-i18n="thShiftName">Tên</th>
+                        <th data-i18n="labelShiftStart">Bt u</th>
+                        <th data-i18n="labelShiftEnd">Kết thúc</th>
+                        <th data-i18n="thShiftAction">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody id="shiftTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+
+              <!-- Chu kỳ xoay ca -->
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="rotationTitle">Chu kỳ xoay ca</h3>
+                  <button id="openNewRotationModalBtn" class="primary-btn" data-i18n="btnAddRotation">+ Tạo chu kỳỳ</button>
+                </div>
+                <div id="rotationMessage" class="message"></div>
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th data-i18n="thRotationName">Tên chu kỳỳ</th>
+                        <th data-i18n="thRotationPattern">Chuỗi ca áp dụng</th>
+                        <th data-i18n="thRotationAction">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rotationTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <!-- Gán cho nhân viên -->
+            <div class="content-grid" style="margin-top: 20px;">
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="assignShiftTitle">Gán cho nhân viên</h3>
+                  <div style="display: flex; gap: 10px;">
+                    <button id="openAssignShiftModalBtn" class="primary-btn" data-i18n="btnAssignShift">+ Gán ca</button>
+                    <button id="openBatchAssignModalBtn" class="primary-btn" style="background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);" data-i18n="btnAssignShiftBatch">+ Gán hàng loạt</button>
+                  </div>
+                </div>
+                <div id="assignMessage" class="message"></div>
+
+                <!-- Bộ lọc theo Ca (Nút bấm lọc nhân viên) -->
+                <div class="filter-row" style="margin-bottom: 15px; flex-wrap: wrap;">
+                  <span style="font-weight: 500; color: var(--muted); margin-right: 10px;" data-i18n="filterByShiftLabel">Lc theo ca:</span>
+                  <div id="shiftFilterTabs" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="ghost-btn active" data-shift-filter="all" data-i18n="filterAll">Tt c</button>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th data-i18n="thEmpName">Nhân viên</th>
+                        <th data-i18n="thEmpCode">Mã NV</th>
+                        <th data-i18n="thAssignedShift">Ca / Chu kỳ đã gán</th>
+                        <th data-i18n="thStartDate">Ngày bắt đầu</th>
+                        <th data-i18n="thEndDate">Ngày kết thúc</th>
+                        <th data-i18n="thAssignAction">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody id="employeeShiftTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <!-- i ca -->
+            <div class="content-grid two-col" style="margin-top: 20px;">
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="shiftSwapRequestTitle">Yêu cầu đổi ca</h3>
+                  <button id="openShiftSwapModalBtn" class="primary-btn" data-i18n="btnRequestSwap">+ Đăng ký đổi ca</button>
+                </div>
+                <div id="shiftSwapMessage" class="message"></div>
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th data-i18n="thSwapRequester">Người yêu cầu (Ngày)</th>
+                        <th data-i18n="thSwapTarget">Người đổi cùng (Ngày)</th>
+                        <th data-i18n="thSwapStatus">Trạng thái</th>
+                        <th data-i18n="thSwapAction">Hành động (HR)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="shiftSwapTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
+
+           <!-- Reports View -->
+          <section id="reportsView" class="view">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 data-i18n="reportsTitle">Báo cáo chấm công tổng hợp tháng</h3>
+                <div style="display: flex; gap: 10px;">
+                  <button id="exportExcelBtn" class="primary-btn" style="background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);" data-i18n="btnExportExcel"> Xuất Excel (CSV)</button>
+                  <button id="sendMonthlyReportBtn" class="primary-btn" style="background: #2563eb;" data-i18n="btnSendMonthlyReport">📧 Gửi báo cáo Gmail</button>
+                </div>
+              </div>
+              <div class="filter-row">
+                <label>
+                  <span data-i18n="labelMonth">Chọn tháng</span>
+                  <input id="reportMonth" type="month" required />
+                </label>
+                <button class="primary-btn" id="applyReportBtn" style="align-self: flex-end; height: 46px;" data-i18n="btnApplyReport">Xem báo cáo</button>
+              </div>
+              <div id="reportMessage" class="message"></div>
+              <div class="table-responsive" style="margin-top: 20px; overflow-x: auto;">
+                <table class="data-table compact" style="min-width: 1000px; border-collapse: collapse;">
+                  <thead id="reportTableHeader"></thead>
+                  <tbody id="reportTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- Audit Logs View -->
+          <section id="auditView" class="view">
+            <div class="panel">
+              <div class="panel-header">
+                <h3 data-i18n="auditTitle">Nhật ký hoạt động hệ thống</h3>
+                <button class="ghost-btn" id="refreshAuditBtn" data-i18n="btnRefreshAudit">Tải lại nhật ký</button>
+              </div>
+              <div class="table-responsive" style="margin-top: 20px; overflow-x: auto;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th data-i18n="thAuditTime">Thời gian</th>
+                      <th data-i18n="thAuditUser">Tài khoản</th>
+                      <th data-i18n="thAuditAction">Hành động</th>
+                      <th data-i18n="thAuditObject">Loại tài nguyên</th>
+                      <th data-i18n="thAuditDesc">Chi tiết nhật ký</th>
+                      <th data-i18n="thAuditIp">Địa chỉ IP</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- Settings View -->
+          <section id="settingsView" class="view">
+            <div class="content-grid two-col">
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="settingsTitle">Cấu hình hệ thống</h3>
+                </div>
+                <div id="settingsConfigList" class="info-list" style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem; color: var(--text);">
+                  <div style="padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--muted);" data-i18n="settingsBackend">Hệ thống:</strong> <span>Go REST API</span>
+                  </div>
+                  <div style="padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--muted);" data-i18n="settingsDatabase">Cơ sở dữ liệu:</strong> <span id="settingsDbInfo">PostgreSQL</span>
+                  </div>
+                  <div style="padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--muted);" data-i18n="settingsAutoSync">Chu kỳ quét (Cron):</strong> <span id="settingsCronInfo">Đang tải...</span>
+                  </div>
+                  <div style="padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--muted);">LDAP SSO Auth:</strong> <span id="settingsLdapInfo">Đang tải...</span>
+                  </div>
+                  <div style="padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--muted);">Cổng lắng nghe (HTTP Port):</strong> <span id="settingsPortInfo">Đang tải...</span>
+                  </div>
+                </div>
+              </article>
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="settingsHelpTitle">Hướng dẫn sử dụng nhanh</h3>
+                </div>
+                <ul class="bullet-list" style="margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6;">
+                  <li data-i18n="settingsHelp1">Đăng nhập bằng tài khoản Quản trị viên (admin).</li>
+                  <li data-i18n="settingsHelp2">Thêm thiết bị chấm công ở tab <strong>Thiết bị</strong>.</li>
+                  <li data-i18n="settingsHelp3">Tạo danh sách nhân viên và gán ca tương ứng.</li>
+                  <li data-i18n="settingsHelp4">Hệ thống chạy ngầm tự động quét và kéo dữ liệu chấm công mỗi 10 giây. Bạn có thể nhấn <strong>Đồng bộ ngay</strong> để kéo tức thì.</li>
+                  <li data-i18n="settingsHelp5">Nhấn nút <strong>Tính công</strong> tại tab Chấm công để chạy công thức phân tích giờ vào/ra và tính số phút đi trễ, về sớm.</li>
+                </ul>
+              </article>
+            </div>
+          </section>
+
+          <!-- ESS View -->
+          <section id="essView" class="view">
+            <div class="content-grid">
+              <!-- Quản lý & Phê duyệt đơn từ -->
+              <article class="panel">
+                <div class="panel-header">
+                  <h3 data-i18n="essApprovalTitle">Quản lý &amp; Phê duyệt đơn</h3>
+                  <div class="filter-group" style="display: flex; gap: 8px; align-items: center;">
+                    <button class="primary-btn" id="openNewEssModalBtn" style="padding: 6px 12px; font-size: 13px;" data-i18n="btnOpenEssModal">➕ Đăng ký đơn</button>
+                    <select id="essFilterType" class="form-input" style="padding: 4px 8px; font-size: 13px;" onchange="loadEssRequestsList()">
+                      <option value="all" data-i18n="optFilterAll">Tt c loi n</option>
+                      <option value="leave" data-i18n="optFilterLeave">Nghỉ phép</option>
+                      <option value="overtime" data-i18n="optFilterOvertime">Làm thêm giờ</option>
+                      <option value="correction" data-i18n="optFilterCorrection">Sửa công</option>
+                    </select>
+                    <select id="essFilterStatus" class="form-input" style="padding: 4px 8px; font-size: 13px;" onchange="loadEssRequestsList()">
+                      <option value="pending" data-i18n="optStatusPending">Ch duyt</option>
+                      <option value="approved" data-i18n="optStatusApproved">Đã duyệt</option>
+                      <option value="rejected" data-i18n="optStatusRejected">T chi</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="essMessage" class="message"></div>
+                <div class="table-responsive" style="margin-top: 10px; max-height: 500px; overflow-y: auto;">
+                  <table class="data-table compact">
+                    <thead>
+                      <tr>
+                        <th data-i18n="thEssEmp">Nhân viên</th>
+                        <th data-i18n="thEssDetails">Chi tit n t</th>
+                        <th data-i18n="thEssStatus">Trạng thái</th>
+                        <th data-i18n="thEssActions">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody id="essTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modals CRUD -->
+    <!-- 1. Device Modal -->
+    <div class="modal" id="deviceModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeDeviceModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 id="deviceModalTitle" data-i18n="modalAddDevice">Thêm thiết bị mới</h3>
+        </div>
+        <form id="deviceForm" class="form-grid">
+          <input type="hidden" id="deviceId" />
+          <label class="full-width">
+            <span data-i18n="labelDeviceName">Tên thiết bị</span>
+            <input id="deviceName" required data-i18n-placeholder="placeholderDeviceName" placeholder="ZKTeco Tng 1" />
+          </label>
+          <label>
+            <span data-i18n="labelDeviceType">Loi thiết bị</span>
+            <select id="deviceType">
+              <option value="zkteco">ZKTeco</option>
+              <option value="sunbeam">Sunbeam</option>
+              <option value="hikvision">Hikvision</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="labelDeviceIp">Địa chỉ IP</span>
+            <input id="deviceIp" required data-i18n-placeholder="placeholderDeviceIp" placeholder="192.168.1.100" />
+          </label>
+          <label>
+            <span data-i18n="labelDevicePort">Cng kt ni</span>
+            <input id="devicePort" type="number" value="4370" />
+          </label>
+          <label>
+            <span data-i18n="labelDeviceSerial">S serial (SDK Pull)</span>
+            <input id="deviceSerial" data-i18n-placeholder="placeholderDeviceSerial" placeholder="Ví dụ: ZK-239102" />
+          </label>
+          <label>
+            <span data-i18n="labelDeviceSerialADMS">S serial ADMS (Push)</span>
+            <input id="deviceSerialADMS" data-i18n-placeholder="placeholderDeviceSerialADMS" placeholder="SN trên máy (bỏ trống nếu giống trên)" />
+          </label>
+          <label>
+            <span data-i18n="labelDeviceFirmware">Phiên bản Firmware</span>
+            <input id="deviceFirmware" data-i18n-placeholder="placeholderDeviceFirmware" placeholder="v1.0.8" />
+          </label>
+          <label>
+            <span data-i18n="labelDeviceMac">Địa chỉ MAC</span>
+            <input id="deviceMac" data-i18n-placeholder="placeholderDeviceMac" placeholder="00:1A:2B:3C:4D:5E" />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelDeviceLocation">Vị trí đặt máy</span>
+            <input id="deviceLocation" data-i18n-placeholder="placeholderDeviceLocation" placeholder="Cửa chính, Tầng 1..." />
+          </label>
+          <label class="full-width" style="display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer;">
+            <input type="checkbox" id="deviceADMSEnabled" style="width: 18px; height: 18px; cursor: pointer;" />
+            <span data-i18n="labelDeviceADMSEnabled" style="font-weight: 500;">Bật chế độ ADMS Push (máy chấm công tự push dữ liệu)</span>
+          </label>
+          <div class="form-actions">
+            <button type="button" id="cancelDeviceBtn" class="secondary-btn" data-i18n="btnCancel">Hy b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnSave">Lưu cấu hình</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2. Employee Modal -->
+    <div class="modal" id="employeeModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeEmployeeModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 id="employeeModalTitle" data-i18n="modalAddEmployee">Thêm nhân viên mới</h3>
+        </div>
+        <form id="employeeForm" class="form-grid">
+          <input type="hidden" id="employeeId" />
+          <label>
+            <span data-i18n="labelEmpCode">Mã nhân viên</span>
+            <input id="employeeCode" required data-i18n-placeholder="placeholderEmployeeCode" placeholder="NV001" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpName">Họ tên đầy đủ</span>
+            <input id="employeeName" required placeholder="Nguyn Vn An" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpJobTitle">Chc danh</span>
+            <input id="employeeJobTitle" placeholder="K s phn mm, HR Specialist..." />
+          </label>
+          <label>
+            <span data-i18n="labelEmpDept">PhòĐồng bộan</span>
+            <select id="employeeDepartment" style="width: 100%; height: 46px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); padding: 0 14px;">
+              <option value="" data-i18n="optDeptNA">-- Chọn phòĐồng bộan --</option>
+              <option value="Hành chính - Nhân sự" data-i18n="optDeptHR">Hành chính - Nhân sự (HR)</option>
+              <option value="K thut / CNTT" data-i18n="optDeptIT">K thut / CNTT (IT)</option>
+              <option value="Kinh doanh / Bán hàng" data-i18n="optDeptSales">Kinh doanh / Bán hàng (Sales)</option>
+              <option value="Marketing & Truyền thông" data-i18n="optDeptMarketing">Marketing & Truyền thông</option>
+              <option value="Kế toán / Tài chính" data-i18n="optDeptFinance">Kế toán / Tài chính</option>
+              <option value="Nghiên cứu & Phát triển" data-i18n="optDeptRD">Nghiên cứu & Phát triển (R&D)</option>
+              <option value="Vận hành / Sản xuất" data-i18n="optDeptProduction">Vận hành / Sản xuất</option>
+              <option value="Chăm sóc khách hàng" data-i18n="optDeptCS">Chăm sóc khách hàng</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="labelEmpCard">Mã số thẻ</span>
+            <input id="employeeCard" placeholder="Mã thẻ từ/vân tay" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpEmail">Email liên hệ</span>
+            <input id="employeeEmail" type="email" placeholder="email@company.com" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpPhone">S in thoi</span>
+            <input id="employeePhone" placeholder="0901234567" />
+          </label>
+          <label>
+            <span>Zalo User ID</span>
+            <input id="employeeZaloUserId" placeholder="ID người dùng Zalo OA (nếu có)" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpGender">Giới tính</span>
+            <select id="employeeGender">
+              <option value="male" data-i18n="optGenderMale">Nam</option>
+              <option value="female" data-i18n="optGenderFemale">N</option>
+              <option value="other" data-i18n="optGenderOther">Khác</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="labelEmpDob">Ngày sinh</span>
+            <input id="employeeDob" type="date" />
+          </label>
+          <label>
+            <span data-i18n="labelEmpJoinDate">Ngày nhận việc</span>
+            <input id="employeeJoinDate" type="date" />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelEmpAvatar">nh i din (URL)</span>
+            <input id="employeeAvatar" placeholder="https://example.com/avatar.jpg" />
+          </label>
+          <label class="full-width" style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" id="employeeEnrollFingerprint" style="width:18px; height:18px;" />
+            <span data-i18n="labelEnrollFingerprint">Đồng bộ và yêu cầu quét vân tay trên máy ngay</span>
+          </label>
+          <div id="employeeEnrollSection" style="display:none; width:100%;">
+            <label>
+              <span data-i18n="labelEnrollDevice">Chọn thiết bị ADMS</span>
+              <select id="employeeEnrollDeviceId" class="form-input" style="width:100%; background:var(--panel); color:var(--text); border:1px solid var(--border); padding:10px; border-radius:6px;"></select>
+            </label>
+            <label>
+              <span data-i18n="labelEnrollDeviceUserId">ID người dùng trên máy (PIN)</span>
+              <input id="employeeEnrollDeviceUserId" class="form-input" style="width:100%; background:var(--panel); color:var(--text); border:1px solid var(--border); padding:10px; border-radius:6px;" />
+            </label>
+          </div>
+          <label class="full-width">
+            <span data-i18n="labelEmpStatus">Trạng thái làm việc</span>
+            <select id="employeeStatus">
+              <option value="active" data-i18n="optStatusActive">Hot ng (Active)</option>
+              <option value="inactive" data-i18n="optStatusInactive">Đã nghỉ việc (Inactive)</option>
+            </select>
+          </label>
+          <div id="employeeProtocolInfo" style="grid-column: 1/-1; padding: 12px; border: 1px solid rgba(255,152,0,0.2); border-radius: 8px; background: rgba(255,152,0,0.05); display: none;">
+            <div style="font-size: 0.9rem; font-weight: 600; color: #FF9800; margin-bottom: 8px;">
+              🔧 Thông tin giao thức
+            </div>
+            <div style="font-size: 0.85rem; color: var(--muted); line-height: 1.6;">
+              <div>📤 <strong>Đẩy nhân viên:</strong> COM SDK (ZKemKeeper) trên Windows</div>
+              <div style="margin-top: 6px;">⚠️ <strong>Yêu cầu:</strong> Windows + DLL ZKemKeeper đã đăng ký</div>
+              <div style="margin-top: 6px;"> <strong>Kt ni:</strong> TCP/IP qua cng 4370</div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="cancelEmployeeBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnSaveEmployee">Lưu nhân viên</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 3. Shift Modal -->
+    <div class="modal" id="shiftModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeShiftModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="modalAddShift">Tạo ca làm việc mới</h3>
+        </div>
+        <form id="shiftForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelShiftName">Tên ca làm việc</span>
+            <input id="shiftName" required placeholder="Ví dụ: Ca Hành Chính" />
+          </label>
+          <label>
+            <span data-i18n="labelShiftStart">Gi bt u</span>
+            <input id="shiftStartTime" type="time" required value="08:00" />
+          </label>
+          <label>
+            <span data-i18n="labelShiftEnd">Giờ kết thúc</span>
+            <input id="shiftEndTime" type="time" required value="17:00" />
+          </label>
+          <label>
+            <span data-i18n="labelBreakMinutes">Số phút nghỉ trưa</span>
+            <input id="shiftBreakMinutes" type="number" required value="60" />
+          </label>
+          <label>
+            <span data-i18n="labelLateGrace">Đi trễ cho phép (phút)</span>
+            <input id="shiftLateGrace" type="number" required value="15" />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelEarlyGrace">Về sớm cho phép (phút)</span>
+            <input id="shiftEarlyGrace" type="number" required value="15" />
+          </label>
+          <div class="form-actions">
+            <button type="button" id="closeShiftModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnCreateShift">To ca</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4. Assign Shift Modal -->
+    <div class="modal" id="assignShiftModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeAssignShiftModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="assignShiftTitle">Gán cho nhân viên</h3>
+        </div>
+        <form id="assignShiftForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelEmployee">Nhân viên nhận ca</span>
+            <select id="assignEmployeeId" required></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelAssignType">Loại phân ca</span>
+            <select id="assignType" required>
+              <option value="shift" data-i18n="optSingleShift">Ca c nh</option>
+              <option value="rotation" data-i18n="optRotationPattern">Chu kỳ xoay ca</option>
+            </select>
+          </label>
+          <label class="full-width" id="assignShiftIdLabel">
+            <span data-i18n="labelShift">Ca làm việc gán</span>
+            <select id="assignShiftId"></select>
+          </label>
+          <label class="full-width" id="assignRotationPatternIdLabel" style="display: none;">
+            <span data-i18n="labelRotationPattern">Chu kỳ xoay ca</span>
+            <select id="assignRotationPatternId"></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelStartDate">Ngày bắt đầu áp dụng</span>
+            <input id="assignStartDate" type="date" required />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelEndDate">Ngày kết thúc (KhôĐồng bộắt buộc)</span>
+            <input id="assignEndDate" type="date" />
+          </label>
+          <div class="form-actions">
+            <button type="button" id="closeAssignShiftModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnAssignShiftNow">Gán ca ngay</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4b. Batch Assign Shift Modal -->
+    <div class="modal" id="batchAssignModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeBatchAssignModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="assignShiftBatchTitle">Gán ca hàng loạt</h3>
+        </div>
+        <form id="batchAssignForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelAssignTarget">Đối tượng áp dụng</span>
+            <select id="batchAssignTargetType" required>
+              <option value="all" data-i18n="optAllEmployees">Tất cả nhân viên</option>
+              <option value="department" data-i18n="optDepartment">Theo phòĐồng bộan</option>
+              <option value="multiple" data-i18n="optMultipleEmployees">Chọn danh sách nhân viên</option>
+            </select>
+          </label>
+          <label class="full-width" id="batchAssignDeptLabel" style="display: none;">
+            <span data-i18n="labelDepartment">PhòĐồng bộan</span>
+            <select id="batchAssignDeptSelect"></select>
+          </label>
+          <label class="full-width" id="batchAssignEmployeesLabel" style="display: none;">
+            <span data-i18n="labelEmployeesList">Chọn nhân viên (giữ Ctrl/Cmd để chọn nhiều)</span>
+            <select id="batchAssignEmployeesSelect" multiple style="height: 120px;"></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelAssignType">Loại phân ca</span>
+            <select id="batchAssignType" required>
+              <option value="shift" data-i18n="optSingleShift">Ca c nh</option>
+              <option value="rotation" data-i18n="optRotationPattern">Chu kỳ xoay ca</option>
+            </select>
+          </label>
+          <label class="full-width" id="batchAssignShiftIdLabel">
+            <span data-i18n="labelShift">Ca làm việc</span>
+            <select id="batchAssignShiftId"></select>
+          </label>
+          <label class="full-width" id="batchAssignRotationPatternIdLabel" style="display: none;">
+            <span data-i18n="labelRotationPattern">Chu kỳ xoay ca</span>
+            <select id="batchAssignRotationPatternId"></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelStartDate">Ngày bắt đầu áp dụng</span>
+            <input id="batchAssignStartDate" type="date" required />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelEndDate">Ngày kết thúc (KhôĐồng bộắt buộc)</span>
+            <input id="batchAssignEndDate" type="date" />
+          </label>
+          <div class="form-actions">
+            <button type="button" id="closeBatchAssignModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnAssignShiftNow">Gán ca ngay</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4c. Create Rotation Pattern Modal -->
+    <div class="modal" id="rotationModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 500px;">
+        <button class="modal-close" id="closeRotationModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="createRotationPatternTitle">Tạo chu kỳỳ xoay ca</h3>
+        </div>
+        <form id="rotationForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelRotationName">Tên chu kỳỳ (vd: Xoay ca tuần)</span>
+            <input id="rotationName" type="text" required placeholder="Xoay ca tun 1" />
+          </label>
+          <div class="full-width" style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px;">
+            <strong style="font-size: 0.9rem;" data-i18n="rotationStepTitle">Thiết lập chu kỳỳ (Tuần tự các ca):</strong>
+            <div id="rotationStepsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+              <!-- Dynamic steps go here -->
+            </div>
+            <button type="button" id="addRotationStepBtn" class="ghost-btn" style="margin-top: 8px; width: 100%; font-size: 0.85rem;" data-i18n="btnAddStep">+ Thêm ca vào chu kỳỳ</button>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="closeRotationModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnSave">Lu chu kỳ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 4d. Shift Swap Modal -->
+    <div class="modal" id="shiftSwapModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeShiftSwapModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="requestShiftSwapTitle">Đăng ký đổi ca làm việc</h3>
+        </div>
+        <form id="shiftSwapForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelSwapRequester">Nhân viên yêu cầu đổi ca</span>
+            <select id="swapRequesterEmployeeId" required></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelSwapRequesterDate">Ngày muốn đổi</span>
+            <input id="swapRequesterDate" type="date" required />
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelSwapTarget">Nhân viên đổi cùng</span>
+            <select id="swapTargetEmployeeId" required></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelSwapTargetDate">Ngày đổi lấy</span>
+            <input id="swapTargetDate" type="date" required />
+          </label>
+          <div class="form-actions">
+            <button type="button" id="closeShiftSwapModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnSubmitSwap">Gửi yêu cầu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 5. ESS Request Modal -->
+    <div class="modal" id="essModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="closeEssModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 data-i18n="essSubmitTitle">Đăng ký đơn từ</h3>
+        </div>
+        <form id="essForm" class="form-grid">
+          <label class="full-width">
+            <span data-i18n="labelEssEmployee">Nhân viên thực hiện</span>
+            <select id="essEmployeeId" required class="form-input"></select>
+          </label>
+          <label class="full-width">
+            <span data-i18n="labelEssType">Loại đơn từ</span>
+            <select id="essType" required class="form-input" onchange="toggleEssFormFields()">
+              <option value="leave" data-i18n="optEssLeave">Nghỉ phép (Leave)</option>
+              <option value="overtime" data-i18n="optEssOvertime">Làm thêm giờ (Overtime)</option>
+              <option value="correction" data-i18n="optEssCorrection">Sửa công (Attendance Correction)</option>
+            </select>
+          </label>
+
+          <!-- Fields cho Nghỉ phép (Leave) -->
+          <div id="essLeaveFields" class="form-grid full-width">
+            <label>
+              <span data-i18n="labelLeaveType">Loại nghỉ phép</span>
+              <select id="essLeaveType" class="form-input">
+                <option value="annual" data-i18n="optLeaveAnnual">Nghỉ phép năm</option>
+                <option value="sick" data-i18n="optLeaveSick">Ngh m</option>
+                <option value="maternity" data-i18n="optLeaveMaternity">Ngh thai sn</option>
+                <option value="unpaid" data-i18n="optLeaveUnpaid">Nghỉ không lương</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="labelLeaveStartDate">Ngày bắt đầu</span>
+              <input id="essLeaveStartDate" type="date" class="form-input" />
+            </label>
+            <label class="full-width">
+              <span data-i18n="labelLeaveEndDate">Ngày kết thúc</span>
+              <input id="essLeaveEndDate" type="date" class="form-input" />
+            </label>
+          </div>
+
+          <!-- Fields cho Làm thêm giờ (Overtime) -->
+          <div id="essOvertimeFields" class="form-grid full-width hidden">
+            <label>
+              <span data-i18n="labelOtDate">Ngày làm thêm</span>
+              <input id="essOtDate" type="date" class="form-input" />
+            </label>
+            <label>
+              <span data-i18n="labelOtStart">Gi bt u</span>
+              <input id="essOtStartTime" type="time" value="17:30" class="form-input" />
+            </label>
+            <label class="full-width">
+              <span data-i18n="labelOtEnd">Giờ kết thúc</span>
+              <input id="essOtEndTime" type="time" value="20:30" class="form-input" />
+            </label>
+          </div>
+
+          <!-- Fields cho Sửa công (Correction) -->
+          <div id="essCorrectionFields" class="form-grid full-width hidden">
+            <label>
+              <span data-i18n="labelCorrDate">Ngày cần sửa công</span>
+              <input id="essCorrDate" type="date" class="form-input" />
+            </label>
+            <label>
+              <span data-i18n="labelCorrType">Loi check</span>
+              <select id="essCorrCheckType" class="form-input">
+                <option value="in" data-i18n="optCorrIn">Giờ vào (Check-In)</option>
+                <option value="out" data-i18n="optCorrOut">Gi ra (Check-Out)</option>
+              </select>
+            </label>
+            <label class="full-width">
+              <span data-i18n="labelCorrTime">Giờ chấm công thực tế (HH:MM)</span>
+              <input id="essCorrTime" type="time" value="08:00" class="form-input" />
+            </label>
+          </div>
+
+          <label class="full-width">
+            <span data-i18n="labelEssReason">Lý do giải trình</span>
+            <textarea id="essReason" required rows="3" placeholder="Lý do cụ thể..." class="form-input"></textarea>
+          </label>
+          <div class="form-actions full-width" style="margin-top: 10px;">
+            <button type="button" id="closeEssModalCancelBtn" class="secondary-btn" data-i18n="btnCancel">Hu b</button>
+            <button type="submit" class="primary-btn" data-i18n="btnSubmitEss">Gửi đơn đăng ký</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 6. Fingerprint Management Modal -->
+    <div class="modal" id="fingerprintModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 480px;">
+        <button class="modal-close" id="closeFingerprintModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3 id="fingerprintModalTitle" data-i18n="modalFingerprintTitle">Quản lý Vân tay (tối đa 10 ngón)</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong style="font-size: 1.05rem;" id="fpModalEmployeeName">-</strong>
+              <code id="fpModalEmployeeCode">-</code>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.95rem;" data-i18n="labelFingerprintStatus">Trạng thái vân tay:</span>
+              <span id="fpModalStatusBadge" class="badge offline" data-i18n="statusNotRegistered">Chưa đăng ký</span>
+            </div>
+          </div>
+
+          <!-- Protocol Information Section -->
+          <div id="fpProtocolInfo" style="margin-bottom: 20px; padding: 12px; border: 1px solid rgba(255,152,0,0.2); border-radius: 8px; background: rgba(255,152,0,0.05);">
+            <div style="font-size: 0.9rem; font-weight: 600; color: #FF9800; margin-bottom: 8px;" data-i18n="labelProtocolInfo">
+              🔧 Thông tin giao thức
+            </div>
+            <div style="font-size: 0.85rem; color: var(--muted); line-height: 1.6;">
+              <div data-i18n="labelFpScanDesc">🔐 <strong>Quét vân tay:</strong> COM SDK (ZKemKeeper) trên Windows</div>
+              <div style="margin-top: 6px;" data-i18n="labelPushToDeviceDesc">📤 <strong>Đẩy sang máy:</strong> COM SDK hoặc ADMS Push</div>
+              <div style="margin-top: 6px;" data-i18n="labelRequirementsDesc">⚠️ <strong>Yêu cầu:</strong> Windows + DLL ZKemKeeper đã đăng ký</div>
+              <div style="margin-top: 6px;" data-i18n="labelConnectionDesc"> <strong>Kt ni:</strong> TCP/IP qua cng 4370</div>
+            </div>
+          </div>
+
+          <!-- Section to enroll new fingerprint -->
+          <div id="fpEnrollSection" style="margin-bottom: 20px;">
+            <h4 style="margin-bottom: 10px; font-size: 1rem; color: var(--accent);" data-i18n="labelRegisterNewFp">Đăng ký vân tay mới</h4>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <label style="display: flex; flex-direction: column; gap: 6px;">
+                <span>Thiết bị quét</span>
+                <select id="fpEnrollDeviceId" class="form-input"></select>
+              </label>
+              <label style="display: flex; flex-direction: column; gap: 6px;">
+                <span data-i18n="labelFingerSelect">Ngón tay đăng ký:</span>
+                <select id="fpEnrollFingerIndex" class="form-input"></select>
+              </label>
+              <button id="fpTriggerEnrollBtn" type="button" class="primary-btn">🖐 Bắt đầu quét vân tay</button>
+              <div id="fpInstructionBox" class="message" style="display: none;">Hãy quét vân tay trên thiết bị đã chọn.</div>
+            </div>
+          </div>
+
+          <div id="fpFingerprintList" style="display: none; margin-bottom: 20px;">
+            <h4 style="margin-bottom: 10px; font-size: 1rem;">Mẫu vân tay đã lưu</h4>
+            <div id="fpFingerprintListItems" style="display: grid; gap: 10px;"></div>
+          </div>
+
+          <!-- Manage existing fingerprint actions -->
+          <div id="fpActionsSection" style="display: none; gap: 10px; flex-direction: column;">
+            <h4 style="margin-bottom: 10px; font-size: 1rem; color: var(--warning);">Thao tác vân tay hiện tại</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <button id="fpReEnrollBtn" class="primary-btn" style="width: 100%; background: var(--accent); border-color: var(--accent);">
+                🔁 Đăng ký lại
+              </button>
+              <button id="fpDeleteBtn" class="secondary-btn" style="width: 100%; color: var(--danger); border-color: var(--danger);">
+                🗑️ Xoá vân tay
+              </button>
+            </div>
+            <button id="fpPushToDevicesBtn" class="secondary-btn" style="width: 100%; margin-top: 10px;">
+              🔄 Đồng bộ máy khác
+            </button>
+          </div>
+
+          <!-- Traditional SDK manual confirm option -->
+          <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px; text-align: center;">
+            <p style="margin: 0; font-size: 0.85rem; color: var(--muted);">
+              Sử dụng thiết bị SDK c 
+              <a href="#" id="fpManualConfirmLink" style="color: var(--accent); text-decoration: underline; margin-left: 5px;">Xác nhận quét trực tiếp</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Backup Device Modal -->
+    <div class="modal" id="backupDeviceModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 500px;">
+        <button class="modal-close" id="closeBackupDeviceModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>🔄 Sao chép & Đồng bộ Thiết bị</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <p style="font-size: 0.95rem; line-height: 1.5; margin-bottom: 15px;">
+            Sao chép toàn bộ danh sách nhân viên và vân tay từ thiết bị nguồn sang các thiết bị đích trống dưới đây:
+          </p>
+          <div style="background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
+            <span style="font-size: 0.9rem; color: var(--muted);">Thiết bị ngun:</span>
+            <strong style="display: block; font-size: 1.05rem; color: var(--accent); margin-top: 4px;" id="backupSourceDeviceName">-</strong>
+            <input type="hidden" id="backupSourceDeviceId" />
+          </div>
+
+          <h4 style="margin-bottom: 10px; font-size: 1rem; color: var(--text);">Chọn thiết bị nhận dữ liệu (thiết bị trống):</h4>
+          <div id="backupTargetDevicesList" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.15);">
+            <!-- Dynamically populated checkboxes -->
+          </div>
+
+          <div style="display: flex; gap: 12px;">
+            <button id="backupCancelBtn" class="secondary-btn" style="flex: 1;">Hu b</button>
+            <button id="backupSubmitBtn" class="primary-btn" style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px;">
+              <span>⚡ Bắt đầu sao chép</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Modal: Đẩy tất cả nhân viên xuống máy (ADMS) -->
+    <div class="modal" id="pushAllToDeviceModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 480px;">
+        <button class="modal-close" id="closePushAllModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>📤 Đẩy tất cả nhân viên xuống máy</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 16px;">
+            Chọn thiết bị để đẩy toàn bộ nhân viên đang active. Lệnh được đưa vào hàng đợi ADMS và máy sẽ nhận khi gửi getrequest.
+          </p>
+          <label style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <span style="font-weight: 500;">Chọn thiết bị đích:</span>
+            <select id="pushAllDeviceSelect" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;"></select>
+          </label>
+          <div id="pushAllStatusMsg" class="message" style="display:none;"></div>
+          <div class="form-actions">
+            <button type="button" id="cancelPushAllBtn" class="secondary-btn">Hy</button>
+            <button type="button" id="confirmPushAllBtn" class="primary-btn">📤 Đẩy xuống máy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Quét vân tay hàng loạt -->
+    <div class="modal" id="batchEnrollModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 560px;">
+        <button class="modal-close" id="closeBatchEnrollModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>🖐 Quét vân tay hàng loạt</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 14px;">
+            Hệ thống gửi lệnh quét vân tay vào hàng đợi cho từng người. Máy chấm công sẽ tự hiển thị màn hình quét lần lượt.
+          </p>
+          <label style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+            <span style="font-weight: 500;">Thiết bị quét vân tay (ADMS):</span>
+            <select id="batchEnrollDeviceSelect" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;"></select>
+          </label>
+          <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 500;">Danh sách nhân viên:</span>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+                <input type="checkbox" id="batchEnrollSelectAll" /> Chọn tt c
+              </label>
+            </div>
+            <div id="batchEnrollEmployeeList" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px;"></div>
+          </div>
+          <div id="batchEnrollStatusMsg" class="message" style="display:none;"></div>
+          <div class="form-actions">
+            <button type="button" id="cancelBatchEnrollBtn" class="secondary-btn">Hy</button>
+            <button type="button" id="confirmBatchEnrollBtn" class="primary-btn">🖐 Bắt đầu quét</button>
+          </div>
+          <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+            <button type="button" id="stopBatchEnrollModalBtn" class="secondary-btn" style="color: var(--danger); border-color: var(--danger);">🛑 Dừng quét hàng loạt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Kéo nhân viên từ máy về web -->
+    <div class="modal" id="pullFromDeviceModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 480px;">
+        <button class="modal-close" id="closePullFromDeviceModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>📥 Kéo nhân viên từ máy về web</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 16px;">
+            Đồng bộ nhân viên từ máy chấm công về web. Nhân viên chưa có trong hệ thống sẽ được tạo mới tự động.
+          </p>
+          <p style="color: var(--muted); font-size: 0.85rem; margin: -8px 0 16px;">
+            Kết quả sẽ hiển thị rõ số nhân viên mới, nhân viên đã có và các lỗi (nếu có). Với máy SDK, trạng thái vân tay cũng được kiểm tra.
+          </p>
+          <label style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <span style="font-weight: 500;">Chọn thiết bị ngun:</span>
+            <select id="pullFromDeviceSelect" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;"></select>
+          </label>
+          <div id="pullFromDeviceStatusMsg" class="message" style="display:none;"></div>
+          <div class="form-actions">
+            <button type="button" id="cancelPullFromDeviceBtn" class="secondary-btn">Hy</button>
+            <button type="button" id="confirmPullFromDeviceBtn" class="primary-btn">📥 Kéo dữ liệu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Chọn máy để đồng bộ nhân viên và quét vân tay -->
+    <div class="modal" id="syncSingleEmployeeModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 480px;">
+        <button class="modal-close" id="closeSyncSingleEmployeeModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>📥 Đồng bộ & Quét vân tay</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px;">
+          <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 16px;">
+            Chọn máy chấm công để đồng bộ thông tin nhân viên và kích hoạt chế độ quét vân tay trực tiếp từ xa.
+          </p>
+          <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
+            <span style="font-size: 0.9rem; color: var(--muted);">Nhân viên:</span>
+            <strong style="display: block; font-size: 1.05rem; color: var(--accent); margin-top: 4px;" id="syncSingleEmployeeEmpName">-</strong>
+            <input type="hidden" id="syncSingleEmployeeEmpId" />
+          </div>
+          <label style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+            <span style="font-weight: 500;">Chọn thiết bị nhn:</span>
+            <select id="syncSingleEmployeeDeviceSelect" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;"></select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <span style="font-weight: 500;">ID người dùng trên máy (PIN):</span>
+            <input type="text" id="syncSingleEmployeeDeviceUserId" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;" />
+          </label>
+          <div id="syncSingleEmployeeStatusMsg" class="message" style="display:none;"></div>
+          <div class="form-actions">
+            <button type="button" id="cancelSyncSingleEmployeeBtn" class="secondary-btn">Hy b</button>
+            <button type="button" id="confirmSyncSingleEmployeeBtn" class="primary-btn">⚡ Xác nhận & Đẩy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Modal: Đăng ký khuôn mặt từ camera laptop -->
+    <div class="modal" id="registerFaceModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 480px; background: var(--panel); border: 1px solid var(--border);">
+        <button class="modal-close" id="closeRegisterFaceModalBtn">&times;</button>
+        <div class="modal-header">
+          <h3>📷 Đăng ký khuôn mặt</h3>
+        </div>
+        <div class="modal-body" style="padding-top: 15px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+          <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border); width: 100%;">
+            <span style="font-size: 0.9rem; color: var(--muted);">Nhân viên:</span>
+            <strong style="display: block; font-size: 1.05rem; color: var(--accent); margin-top: 4px;" id="registerFaceEmpName">-</strong>
+            <input type="hidden" id="registerFaceEmpId" />
+          </div>
+
+          <!-- Camera Stream đăng ký -->
+          <div class="camera-wrapper" id="registerFaceCameraWrapper" style="position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; border: 2px solid var(--border); background: #0c0f16; transition: all 0.3s ease;">
+            <video id="registerFaceVideo" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+            <canvas id="registerFaceOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none;"></canvas>
+          </div>
+
+          <div id="registerFaceStatusMsg" class="message" style="width: 100%; text-align: center; display: block;">Vui lòng bật camera để bắt đầu quét khuôn mặt</div>
+
+          <div class="form-actions" style="width: 100%; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border); padding-top: 15px;">
+            <button type="button" id="startRegisterFaceCamBtn" class="secondary-btn">📷 Bật Camera</button>
+            <button type="button" id="captureFaceBtn" class="primary-btn" onclick="if (window.captureAndSaveFace) { window.captureAndSaveFace(); }" disabled>⚡ Chụp & Đăng ký</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Custom Confirmation -->
+    <div class="modal" id="confirmModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 420px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2); background: var(--panel);">
+        <div style="font-size: 2.5rem; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.2));">⚠️</div>
+        <h3 id="confirmModalTitle" style="margin-bottom: 10px; font-weight: 600;">Xác nhận thao tác</h3>
+        <p id="confirmModalMessage" style="color: var(--muted); margin-bottom: 24px; font-size: 0.95rem; line-height: 1.5; padding: 0 10px;"></p>
+        <div class="form-actions" style="justify-content: center; gap: 12px; border-top: none; padding-top: 0;">
+          <button type="button" id="confirmModalCancelBtn" class="secondary-btn" style="min-width: 100px;">Hy</button>
+          <button type="button" id="confirmModalSubmitBtn" class="primary-btn" style="min-width: 100px; background: var(--danger); border-color: var(--danger); color: white;">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Custom Select Mapping -->
+    <div class="modal" id="selectMappingModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="max-width: 420px; background: var(--panel); border: 1px solid var(--border);">
+        <h3 id="selectMappingModalTitle" style="margin-bottom: 12px; font-weight: 600; color: var(--text);">Chọn ID Thiết bị / Mapping</h3>
+        <p id="selectMappingModalMessage" style="color: var(--muted); margin-bottom: 18px; font-size: 0.9rem; line-height: 1.4;"></p>
+        <div style="margin-bottom: 20px;">
+          <select id="selectMappingDropdown" class="form-input" style="width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px;"></select>
+        </div>
+        <div class="form-actions" style="justify-content: flex-end; gap: 12px; border-top: none; padding-top: 0;">
+          <button type="button" id="selectMappingModalCancelBtn" class="secondary-btn">Hy</button>
+          <button type="button" id="selectMappingModalSubmitBtn" class="primary-btn">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cache-bust so browsers receive the modal structure and event fixes. -->
+    <script src="/app.js?v=1784630403"></script>
+    <script>
+      console.log("=== ATTENDANCE SYSTEM VERSION 1784146000 - UNIFIED DIALOGS LOADED ===");
+      // Apply i18n on initial load
+      document.addEventListener('DOMContentLoaded', function() {
+        applyI18n();
+        updateLangToggleBtn();
+      });
+    </script>
+  </body>
+</html>
+
+

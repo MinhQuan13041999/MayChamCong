@@ -1,0 +1,3 @@
+ALTER TABLE device 
+DROP COLUMN IF EXISTS username,
+DROP COLUMN IF EXISTS password;

@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: attendance-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ATTENDANCE_ENV: production
+      ATTENDANCE_HTTP_PORT: 8080
+      ATTENDANCE_POSTGRES_DSN: "postgres://attendance:attendance@postgres:5432/attendance_db?sslmode=disable"
+      ATTENDANCE_ATTENDANCE_SYNC_CRON: "*/15 * * * *"
+      ATTENDANCE_JWT_SECRET: "change-me-in-production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: attendance-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: attendance
+      POSTGRES_DB: attendance_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - attendance_pgdata:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:latest
+    container_name: attendance-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  attendance_pgdata:

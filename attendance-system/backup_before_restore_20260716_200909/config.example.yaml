@@ -1,0 +1,5 @@
+env: development
+http_port: 8085
+postgres_dsn: "postgres://attendance:attendance@localhost:5432/attendance_db?sslmode=disable"
+attendance_sync_cron: "*/15 * * * *"
+jwt_secret: "change-me-in-production"

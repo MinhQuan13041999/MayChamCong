@@ -1,0 +1,40 @@
+env: development
+http_port: 8085
+postgres_dsn: "postgres://postgres:123456@localhost:5432/attendance_db?sslmode=disable"
+attendance_sync_cron: "*/15 * * * *"
+jwt_secret: "change-me-in-production"
+# Thay thế chuỗi kết nối cho phù hợp với tài khoản của bạn
+
+# Đồng bộ log qua SDK khi thiết bị tắt ADMS.
+sdk:
+  attendance_poll_interval_seconds: 2
+  connect_timeout_seconds: 8
+  max_retries: 2
+
+# Chính sách tính công. Giờ thường bị giới hạn trong ca; OT cần đơn duyệt và log thực tế.
+attendance:
+  shift_window_before_minutes: 60
+  shift_window_after_minutes: 60
+  overtime_requires_approval: true
+  overtime_requires_device_log: true
+  overtime_log_grace_minutes: 15
+
+# Cấu hình xác thực LDAP / Active Directory (Tùy chọn)
+ldap_enabled: false
+ldap_url: "ldap://localhost:389"
+ldap_domain: "company.local"
+
+# Thông báo chấm công. Bật từng kênh sau khi điền thông tin thật.
+notifications:
+  enabled: true
+  email_enabled: true
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_username: "quan.buiaomine1304@gmail.com"
+  smtp_password: "docjwhcknbbsbcnm"
+  smtp_from: "quan.buiaomine1304@gmail.com"
+  zalo_enabled: false
+  zalo_api_url: "https://openapi.zalo.me/v3.0/oa/message/cs"
+  zalo_access_token: ""
+  instant_max_age_minutes: 10
+  checkout_grace_minutes: 30

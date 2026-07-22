@@ -1,0 +1,750 @@
+openapi: 3.0.3
+info:
+  title: Attendance System API
+  description: >
+    API quản lý chấm công tập trung, tích hợp nhiều dòng máy (ZKTeco, Sunbeam/Timmy, Hikvision).
+    Hệ thống chỉ lưu trữ raw log chấm công và đồng bộ nhân viên hai chiều — không tính công.
+  version: "1.0.0"
+servers:
+  - url: /api/v1
+
+# JWT Bearer Auth áp dụng cho toàn bộ API (trừ /auth/login được override bên dưới)
+security:
+  - BearerAuth: []
+
+tags:
+  - name: devices
+    description: Quản lý thiết bị chấm công
+  - name: employees
+    description: Quản lý nhân viên
+  - name: sync
+    description: Đồng bộ dữ liệu chấm công / nhân viên
+  - name: auth
+    description: Xác thực và phân quyền (RBAC)
+  - name: shifts
+    description: Quản lý ca làm việc
+  - name: leave
+    description: Đăng ký và duyệt nghỉ phép
+  - name: overtime
+    description: Đăng ký và duyệt làm thêm giờ
+  - name: attendance
+    description: Bảng công tổng hợp và xử lý tính công
+  - name: audit
+    description: Nhật ký hoạt động hệ thống
+  - name: dashboard
+    description: Thống kê tổng quan và luồng dữ liệu realtime
+
+paths:
+  /devices:
+    post:
+      tags: [devices]
+      summary: Thêm thiết bị mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+      responses:
+        '201':
+          description: Thiết bị đã được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+    get:
+      tags: [devices]
+      summary: Danh sách thiết bị
+      responses:
+        '200':
+          description: Danh sách thiết bị
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+
+  /devices/{id}:
+    put:
+      tags: [devices]
+      summary: Sửa thiết bị
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeviceRequest'
+      responses:
+        '200':
+          description: Thiết bị đã được cập nhật
+    delete:
+      tags: [devices]
+      summary: Xoá thiết bị
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      responses:
+        '204':
+          description: Đã xoá
+
+  /devices/{id}/status:
+    get:
+      tags: [devices]
+      summary: Kiểm tra trạng thái online/offline
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      responses:
+        '200':
+          description: Trạng thái thiết bị
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceStatus'
+
+  /devices/{id}/test-connection:
+    post:
+      tags: [devices]
+      summary: Test kết nối tới thiết bị
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      responses:
+        '200':
+          description: Kết nối thành công
+        '503':
+          description: Không thể kết nối
+
+  /devices/{id}/reboot:
+    post:
+      tags: [devices]
+      summary: Khởi động lại thiết bị (nếu hãng hỗ trợ)
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      responses:
+        '202':
+          description: Yêu cầu khởi động lại đã được gửi
+
+  /employees:
+    post:
+      tags: [employees]
+      summary: Tạo nhân viên mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmployeeRequest'
+      responses:
+        '201':
+          description: Nhân viên đã được tạo
+    get:
+      tags: [employees]
+      summary: Danh sách nhân viên
+      responses:
+        '200':
+          description: Danh sách nhân viên
+
+  /employees/{id}:
+    put:
+      tags: [employees]
+      summary: Sửa nhân viên
+      parameters:
+        - $ref: '#/components/parameters/EmployeeID'
+      responses:
+        '200':
+          description: Nhân viên đã được cập nhật
+    delete:
+      tags: [employees]
+      summary: Xoá nhân viên
+      parameters:
+        - $ref: '#/components/parameters/EmployeeID'
+      responses:
+        '204':
+          description: Đã xoá
+
+  /employees/import:
+    post:
+      tags: [employees]
+      summary: Import danh sách nhân viên từ file Excel
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Import thành công
+
+  /devices/{id}/sync-employees:
+    post:
+      tags: [sync]
+      summary: Đẩy danh sách nhân viên active xuống máy chấm công
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      responses:
+        '200':
+          description: Kết quả đồng bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncHistory'
+
+  /devices/{id}/sync-attendance:
+    post:
+      tags: [sync]
+      summary: Đồng bộ log chấm công thủ công từ thiết bị
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Kết quả đồng bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncHistory'
+
+  /attendance-logs:
+    get:
+      tags: [sync]
+      summary: Truy vấn raw log chấm công
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: employee_code
+          schema: { type: string }
+        - in: query
+          name: device_id
+          schema: { type: string }
+      responses:
+        '200':
+          description: Danh sách log chấm công
+
+  /sync-history:
+    get:
+      tags: [sync]
+      summary: Lịch sử đồng bộ
+      parameters:
+        - in: query
+          name: device_id
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [success, failed, partial] }
+      responses:
+        '200':
+          description: Danh sách lịch sử đồng bộ
+
+  /sync-history/{id}/retry:
+    post:
+      tags: [sync]
+      summary: Đồng bộ lại nếu lần trước thất bại
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Kết quả đồng bộ lại
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Đăng nhập hệ thống quản trị (public — không cần token)
+      security: []   # override: endpoint này không yêu cầu JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, example: admin }
+                password: { type: string, example: admin123 }
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả JWT token (hết hạn sau 24h)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT Bearer token
+                  expires_at:
+                    type: integer
+                    description: Unix timestamp khi token hết hạn
+        '401':
+          description: Sai username hoặc password
+
+  # ─── Ca làm việc (Shifts) ────────────────────────────────────────────────────
+  /shifts:
+    post:
+      tags: [shifts]
+      summary: Tạo ca làm việc mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShiftRequest'
+      responses:
+        '201':
+          description: Ca làm việc đã được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+    get:
+      tags: [shifts]
+      summary: Danh sách ca làm việc
+      responses:
+        '200':
+          description: Danh sách ca làm việc
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shift'
+
+  /shifts/{id}:
+    delete:
+      tags: [shifts]
+      summary: Xoá ca làm việc
+      parameters:
+        - $ref: '#/components/parameters/ShiftID'
+      responses:
+        '204':
+          description: Đã xoá ca làm việc
+
+  /employees/{id}/shifts:
+    post:
+      tags: [shifts]
+      summary: Gán ca làm việc cho nhân viên
+      parameters:
+        - $ref: '#/components/parameters/EmployeeID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shift_id, start_date]
+              properties:
+                shift_id: { type: string }
+                start_date: { type: string, format: date, example: "2026-07-01" }
+                end_date: { type: string, format: date, example: "2026-12-31" }
+      responses:
+        '201':
+          description: Ca đã được gán thành công
+
+  # ─── Xin nghỉ phép (Leave Requests) ─────────────────────────────────────────
+  /leave-requests:
+    post:
+      tags: [leave]
+      summary: Đăng ký nghỉ phép
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeaveRequest'
+      responses:
+        '201':
+          description: Đã tạo yêu cầu nghỉ phép
+    get:
+      tags: [leave]
+      summary: Danh sách đơn xin nghỉ phép
+      parameters:
+        - in: query
+          name: employee_id
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, approved, rejected] }
+      responses:
+        '200':
+          description: Danh sách đơn xin nghỉ phép
+
+  /leave-requests/{id}/approve:
+    post:
+      tags: [leave]
+      summary: Duyệt đơn nghỉ phép
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Đã duyệt
+
+  /leave-requests/{id}/reject:
+    post:
+      tags: [leave]
+      summary: Từ chối đơn nghỉ phép
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Đã từ chối
+
+  # ─── Làm thêm giờ (Overtime Requests) ───────────────────────────────────────
+  /overtime-requests:
+    post:
+      tags: [overtime]
+      summary: Đăng ký làm thêm giờ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOvertimeRequest'
+      responses:
+        '201':
+          description: Đã tạo yêu cầu OT
+    get:
+      tags: [overtime]
+      summary: Danh sách đơn OT
+      parameters:
+        - in: query
+          name: employee_id
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, approved, rejected] }
+      responses:
+        '200':
+          description: Danh sách đơn OT
+
+  /overtime-requests/{id}/approve:
+    post:
+      tags: [overtime]
+      summary: Duyệt đơn OT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Đã duyệt
+
+  /overtime-requests/{id}/reject:
+    post:
+      tags: [overtime]
+      summary: Từ chối đơn OT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Đã từ chối
+
+  # ─── Bảng công tổng hợp (Daily Attendance) ───────────────────────────────────
+  /daily-attendance/process:
+    post:
+      tags: [attendance]
+      summary: Tính công cho tất cả nhân viên trong ngày chỉ định
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  example: "2026-07-14"
+      responses:
+        '200':
+          description: Tính công thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: integer
+                    description: Số nhân viên đã tính công
+
+  /daily-attendance/report:
+    get:
+      tags: [attendance]
+      summary: Báo cáo bảng công tổng hợp (lọc theo nhân viên, khoảng thời gian)
+      parameters:
+        - in: query
+          name: employee_id
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Bảng công tổng hợp
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyAttendance'
+
+  # ─── Audit Log ───────────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      tags: [audit]
+      summary: Danh sách nhật ký hoạt động hệ thống
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Danh sách audit log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+
+  # ─── Dashboard & Real-time ───────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      tags: [dashboard]
+      summary: Thống kê tổng quan cho Dashboard
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+
+  /stream:
+    get:
+      tags: [dashboard]
+      summary: Server-Sent Events — nhận thông báo realtime khi có dữ liệu chấm công mới
+      security: []  # SSE thường mở qua URL token
+      responses:
+        '200':
+          description: SSE stream (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Lấy token từ POST /auth/login.
+        Gửi kèm header: Authorization: Bearer <token>
+
+  parameters:
+    DeviceID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    EmployeeID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ShiftID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+
+  schemas:
+    CreateDeviceRequest:
+      type: object
+      required: [name, device_type, ip_address, port]
+      properties:
+        name: { type: string, example: "ZKTeco Kho A" }
+        device_type: { type: string, enum: [zkteco, sunbeam, hikvision] }
+        ip_address: { type: string, example: "192.168.1.100" }
+        port: { type: integer, example: 4370 }
+        serial_number: { type: string }
+        location: { type: string, example: "Kho hàng tầng 1" }
+
+    UpdateDeviceRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateDeviceRequest'
+
+    Device:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        device_type: { type: string }
+        ip_address: { type: string }
+        port: { type: integer }
+        serial_number: { type: string }
+        status: { type: string, enum: [online, offline] }
+        last_checked_at: { type: string, format: date-time }
+        location: { type: string }
+        created_at: { type: string, format: date-time }
+
+    DeviceStatus:
+      type: object
+      properties:
+        online: { type: boolean }
+        firmware_info: { type: string }
+        user_count: { type: integer }
+        log_count: { type: integer }
+
+    CreateEmployeeRequest:
+      type: object
+      required: [employee_code, full_name]
+      properties:
+        employee_code: { type: string, example: "EMP001" }
+        full_name: { type: string, example: "Nguyễn Văn A" }
+        department_id: { type: string }
+        card_no: { type: string }
+        gender: { type: string, enum: [male, female, other] }
+        date_of_birth: { type: string, format: date }
+        phone: { type: string }
+        email: { type: string }
+        job_title: { type: string }
+
+    SyncHistory:
+      type: object
+      properties:
+        id: { type: integer }
+        device_id: { type: string }
+        sync_type: { type: string, enum: [employee, attendance, time_sync] }
+        trigger_type: { type: string, enum: [manual, scheduled] }
+        status: { type: string, enum: [success, failed, partial] }
+        record_count: { type: integer }
+        error_message: { type: string }
+
+    CreateShiftRequest:
+      type: object
+      required: [name, start_time, end_time]
+      properties:
+        name: { type: string, example: "Ca sáng" }
+        start_time: { type: string, example: "08:00" }
+        end_time: { type: string, example: "17:00" }
+        break_minutes: { type: integer, default: 60 }
+        late_grace_minutes: { type: integer, default: 5 }
+        early_grace_minutes: { type: integer, default: 5 }
+        max_working_minutes: { type: integer, default: 480 }
+        timezone: { type: string, default: "Asia/Ho_Chi_Minh" }
+
+    Shift:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        start_time: { type: string }
+        end_time: { type: string }
+        break_minutes: { type: integer }
+        late_grace_minutes: { type: integer }
+        early_grace_minutes: { type: integer }
+        max_working_minutes: { type: integer }
+        timezone: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CreateLeaveRequest:
+      type: object
+      required: [employee_id, leave_type, start_date, end_date]
+      properties:
+        employee_id: { type: string }
+        leave_type: { type: string, enum: [annual, sick, unpaid, business_trip] }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        reason: { type: string }
+
+    CreateOvertimeRequest:
+      type: object
+      required: [employee_id, date, start_time, end_time]
+      properties:
+        employee_id: { type: string }
+        date: { type: string, format: date }
+        start_time: { type: string, example: "17:00" }
+        end_time: { type: string, example: "20:00" }
+
+    DailyAttendance:
+      type: object
+      properties:
+        id: { type: integer }
+        employee_id: { type: string }
+        date: { type: string, format: date }
+        shift_id: { type: string }
+        first_in: { type: string, format: date-time }
+        last_out: { type: string, format: date-time }
+        late_minutes: { type: integer }
+        early_minutes: { type: integer }
+        working_hours: { type: number }
+        attendance_status:
+          type: string
+          enum: [present, late, early, absent, leave]
+        overtime_minutes: { type: integer }
+        leave_id: { type: string }
+
+    AuditLog:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: string }
+        action: { type: string }
+        object_type: { type: string }
+        object_id: { type: string }
+        description: { type: string }
+        ip_address: { type: string }
+        created_at: { type: string, format: date-time }
+
+    DashboardStats:
+      type: object
+      properties:
+        total_employees: { type: integer }
+        total_devices: { type: integer }
+        online_devices: { type: integer }
+        today_present: { type: integer }
+        today_absent: { type: integer }
+        today_late: { type: integer }
+        recent_syncs: { type: integer }

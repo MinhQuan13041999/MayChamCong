@@ -1,0 +1,5 @@
+./mocks.go
+./device_service_test.go
+./employee_service_test.go
+./report_service_test.go
+./sync_service_test.go

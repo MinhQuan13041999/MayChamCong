@@ -1,0 +1,77 @@
+2026-07-20T11:21:34.991+0700	INFO	scheduler/scheduler.go:124	Checkout reminder monitor started
+2026-07-20T11:21:34.991+0700	INFO	server/main.go:132	server starting	{"port": 8085}
+2026-07-20T11:21:34.990+0700	INFO	scheduler/scheduler.go:82	Background 10-second sync worker started
+2026-07-20T11:22:38.912+0700	DEBUG	scheduler/scheduler.go:101	10s-scheduler: sync failed	{"device_id": "b25c9b63-30dc-4ef0-a7eb-410ef83c0bf0", "error": "connect failed after 3 attempts: zkteco connect 192.168.1.101:4370: kết nối tới 192.168.1.101:4370 thất bại (GetLastError: 0) — kiểm tra IP, dây mạng và máy chấm công đang bật"}
+2026-07-20T11:22:59.146+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000001", "method": "POST", "path": "/api/v1/auth/login", "status": 200, "duration": "122.7536ms"}
+2026-07-20T11:22:59.604+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000002", "method": "DELETE", "path": "/api/v1/devices/3a204098-cc5b-491c-97d2-92a2f69a049b", "status": 204, "duration": "259.7227ms"}
+2026-07-20T11:22:59.825+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000003", "method": "DELETE", "path": "/api/v1/devices/b25c9b63-30dc-4ef0-a7eb-410ef83c0bf0", "status": 204, "duration": "72.9884ms"}
+2026-07-20T11:22:59.857+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000004", "method": "GET", "path": "/api/v1/devices", "status": 200, "duration": "10.0701ms"}
+2026-07-20T11:23:13.066+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000006", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "72.7196ms"}
+2026-07-20T11:23:13.298+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000007", "method": "GET", "path": "/api/v1/daily-attendance/report", "status": 200, "duration": "145.6259ms"}
+2026-07-20T11:23:16.662+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000008", "method": "GET", "path": "/", "status": 304, "duration": "48.0867ms"}
+2026-07-20T11:23:16.946+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000005", "method": "GET", "path": "/api/v1/stream", "status": 200, "duration": "3.982533s"}
+2026-07-20T11:23:17.205+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000009", "method": "GET", "path": "/.well-known/appspecific/com.chrome.devtools.json", "status": 304, "duration": "1.0254ms"}
+2026-07-20T11:23:17.207+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000010", "method": "GET", "path": "/styles.css", "status": 304, "duration": "1.9647ms"}
+2026-07-20T11:23:17.207+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000011", "method": "GET", "path": "/app.js", "status": 304, "duration": "0s"}
+2026-07-20T11:23:17.215+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000012", "method": "GET", "path": "/i18n.js", "status": 304, "duration": "544.3µs"}
+2026-07-20T11:23:17.574+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000013", "method": "GET", "path": "/api/v1/devices", "status": 200, "duration": "18.7052ms"}
+2026-07-20T11:23:17.610+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000018", "method": "GET", "path": "/api/v1/audit-logs", "status": 200, "duration": "20.6717ms"}
+2026-07-20T11:23:17.677+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000015", "method": "GET", "path": "/api/v1/employees", "status": 200, "duration": "104.9172ms"}
+2026-07-20T11:23:18.018+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000016", "method": "GET", "path": "/api/v1/shifts", "status": 200, "duration": "440.2789ms"}
+2026-07-20T11:23:18.139+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000014", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "567.7723ms"}
+2026-07-20T11:23:18.157+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000019", "method": "GET", "path": "/api/v1/dashboard/stats", "status": 200, "duration": "538.8132ms"}
+2026-07-20T11:23:18.329+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000017", "method": "GET", "path": "/api/v1/sync-history", "status": 200, "duration": "748.2727ms"}
+2026-07-20T11:23:19.112+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000021", "method": "GET", "path": "/api/v1/daily-attendance/report", "status": 200, "duration": "10.331ms"}
+2026-07-20T11:23:23.709+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000022", "method": "POST", "path": "/api/v1/auth/login", "status": 200, "duration": "163.9487ms"}
+2026-07-20T11:23:23.884+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000023", "method": "GET", "path": "/api/v1/devices", "status": 200, "duration": "8.5217ms"}
+2026-07-20T11:23:24.023+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000024", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "26.6291ms"}
+2026-07-20T11:23:24.469+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000025", "method": "GET", "path": "/api/v1/sync-history", "status": 200, "duration": "92.9038ms"}
+2026-07-20T11:23:29.296+0700	DEBUG	scheduler/scheduler.go:101	10s-scheduler: sync failed	{"device_id": "b25c9b63-30dc-4ef0-a7eb-410ef83c0bf0", "error": "connect failed after 3 attempts: zkteco connect 192.168.1.101:4370: kết nối tới 192.168.1.101:4370 thất bại (GetLastError: 0) — kiểm tra IP, dây mạng và máy chấm công đang bật"}
+2026-07-20T11:23:55.357+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000026", "method": "POST", "path": "/api/v1/devices/dba701f3-fc74-4d79-8a43-5f989c29622d/test-connection", "status": 200, "duration": "966.6088ms"}
+2026-07-20T11:23:55.416+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000028", "method": "GET", "path": "/api/v1/devices", "status": 200, "duration": "3.5785ms"}
+2026-07-20T11:23:55.427+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000029", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "13.8532ms"}
+2026-07-20T11:23:55.457+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000032", "method": "GET", "path": "/api/v1/audit-logs", "status": 200, "duration": "8.6734ms"}
+2026-07-20T11:23:55.509+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000033", "method": "GET", "path": "/api/v1/daily-attendance/report", "status": 200, "duration": "2.3594ms"}
+2026-07-20T11:23:55.513+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000034", "method": "GET", "path": "/api/v1/shifts", "status": 200, "duration": "5.7849ms"}
+2026-07-20T11:23:55.660+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000030", "method": "GET", "path": "/api/v1/dashboard/stats", "status": 200, "duration": "245.9227ms"}
+2026-07-20T11:23:55.668+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000027", "method": "GET", "path": "/api/v1/sync-history", "status": 200, "duration": "255.0411ms"}
+2026-07-20T11:23:55.720+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000031", "method": "GET", "path": "/api/v1/employees", "status": 200, "duration": "305.3555ms"}
+2026-07-20T11:23:59.252+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000035", "method": "POST", "path": "/api/v1/devices/dba701f3-fc74-4d79-8a43-5f989c29622d/reboot", "status": 202, "duration": "1.120044s"}
+2026-07-20T11:24:28.849+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000036", "method": "POST", "path": "/api/v1/auth/login", "status": 200, "duration": "114.6202ms"}
+2026-07-20T11:24:28.967+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000037", "method": "GET", "path": "/api/v1/devices", "status": 200, "duration": "522.5µs"}
+2026-07-20T11:24:45.064+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000038", "method": "POST", "path": "/api/v1/employees/7bb4172e-b3b0-4c40-856d-58f38fff67c8/fingerprints/re-enroll", "status": 200, "duration": "16.472ms"}
+2026-07-20T11:24:47.916+0700	INFO	usecase/biometric_service.go:848	SDK batch enrollment started; waiting for template	{"device_id": "dba701f3-fc74-4d79-8a43-5f989c29622d", "employee_id": "7bb4172e-b3b0-4c40-856d-58f38fff67c8", "pin": "07", "finger_index": 0}
+2026-07-20T11:24:59.935+0700	WARN	usecase/biometric_service.go:631	SDK fingerprint enrollment did not produce a template	{"device_id": "dba701f3-fc74-4d79-8a43-5f989c29622d", "employee_id": "7bb4172e-b3b0-4c40-856d-58f38fff67c8", "error": "fingerprint 0 was not captured for user 07 after 10s: zkteco: GetFingerprint failed. Chi tiết lỗi COM: fingerprint 0 is not available for user 07"}
+attendance-system/internal/usecase.(*BiometricService).EnrollFingerprint.func1
+	E:/Project/attendance-system/internal/usecase/biometric_service.go:631
+2026-07-20T11:25:18.353+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000039", "method": "GET", "path": "/iclock/cdata", "status": 200, "duration": "154.5825ms"}
+2026-07-20T11:25:18.574+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000040", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "23.459ms"}
+2026-07-20T11:25:19.312+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000041", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "20.8486ms"}
+2026-07-20T11:25:21.299+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000042", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "53.995ms"}
+2026-07-20T11:25:23.432+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000043", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "174.856ms"}
+2026-07-20T11:25:26.276+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000044", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "6.6811ms"}
+2026-07-20T11:25:29.318+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000045", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "15.1152ms"}
+2026-07-20T11:25:32.264+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000046", "method": "POST", "path": "/iclock/cdata", "status": 200, "duration": "196.2357ms"}
+2026-07-20T11:25:32.312+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000047", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "46.5693ms"}
+2026-07-20T11:25:32.408+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000048", "method": "GET", "path": "/api/v1/daily-attendance/report", "status": 200, "duration": "3.8108ms"}
+2026-07-20T11:25:32.989+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000049", "method": "POST", "path": "/iclock/cdata", "status": 200, "duration": "10.9878ms"}
+2026-07-20T11:25:34.013+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000050", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "4.1818ms"}
+2026-07-20T11:25:35.788+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000051", "method": "POST", "path": "/iclock/cdata", "status": 200, "duration": "35.0519ms"}
+2026-07-20T11:25:35.788+0700	WARN	usecase/notification_service.go:98	attendance notification failed	{"employee_code": "06", "error": "no notification channel configured for employee"}
+attendance-system/internal/usecase.(*NotificationService).NotifyAttendanceLogs
+	E:/Project/attendance-system/internal/usecase/notification_service.go:98
+2026-07-20T11:25:35.825+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000052", "method": "GET", "path": "/api/v1/attendance-logs", "status": 200, "duration": "22.7477ms"}
+2026-07-20T11:25:35.892+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000053", "method": "GET", "path": "/api/v1/daily-attendance/report", "status": 200, "duration": "18.5441ms"}
+2026-07-20T11:25:36.877+0700	WARN	usecase/notification_service.go:98	attendance notification failed	{"employee_code": "07", "error": "no notification channel configured for employee"}
+attendance-system/internal/usecase.(*NotificationService).NotifyAttendanceLogs
+	E:/Project/attendance-system/internal/usecase/notification_service.go:98
+2026-07-20T11:25:36.880+0700	WARN	usecase/notification_service.go:98	attendance notification failed	{"employee_code": "07", "error": "no notification channel configured for employee"}
+attendance-system/internal/usecase.(*NotificationService).NotifyAttendanceLogs
+	E:/Project/attendance-system/internal/usecase/notification_service.go:98
+2026-07-20T11:25:37.309+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000054", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "13.5886ms"}
+2026-07-20T11:25:42.250+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000055", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "6.1713ms"}
+2026-07-20T11:25:47.294+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000056", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "5.0031ms"}
+2026-07-20T11:25:53.238+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000057", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "3.6844ms"}
+2026-07-20T11:25:59.284+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000058", "method": "GET", "path": "/iclock/getrequest", "status": 200, "duration": "4.5893ms"}
+2026-07-20T11:26:02.823+0700	INFO	http/middleware.go:32	http_request	{"request_id": "LAPTOP-AT8PMRGO/qBMZydZ2gt-000059", "method": "POST", "path": "/iclock/cdata", "status": 200, "duration": "2.2343ms"}
+2026-07-20T11:30:01.725+0700	INFO	scheduler/scheduler.go:60	scheduler: sync completed	{"device_id": "dba701f3-fc74-4d79-8a43-5f989c29622d", "status": "success", "record_count": 0}

@@ -1,0 +1,239 @@
+package usecase
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"attendance-system/internal/domain/entity"
+	"attendance-system/internal/domain/port"
+)
+
+// DeviceService xử lý business logic liên quan tới thiết bị chấm công.
+// Service KHÔNG gọi trực tiếp SDK hãng máy — chỉ phụ thuộc vào port.DeviceAdapter.
+type DeviceService struct {
+	deviceRepo  port.DeviceRepository
+	factory     port.DeviceAdapterFactory
+	commandRepo port.DeviceCommandRepository
+}
+
+func NewDeviceService(deviceRepo port.DeviceRepository, factory port.DeviceAdapterFactory) *DeviceService {
+	return &DeviceService{deviceRepo: deviceRepo, factory: factory}
+}
+
+func (s *DeviceService) SetCommandRepo(repo port.DeviceCommandRepository) {
+	s.commandRepo = repo
+}
+
+func (s *DeviceService) CreateDevice(ctx context.Context, d *entity.Device) error {
+	if d.Name == "" || d.IPAddress == "" {
+		return fmt.Errorf("device name and ip_address are required")
+	}
+	d.Status = "offline"
+	return s.deviceRepo.Create(ctx, d)
+}
+
+func (s *DeviceService) UpdateDevice(ctx context.Context, d *entity.Device) error {
+	return s.deviceRepo.Update(ctx, d)
+}
+
+func (s *DeviceService) DeleteDevice(ctx context.Context, id string) error {
+	return s.deviceRepo.Delete(ctx, id)
+}
+
+func (s *DeviceService) ListDevices(ctx context.Context) ([]entity.Device, error) {
+	return s.deviceRepo.List(ctx)
+}
+
+func (s *DeviceService) GetDevice(ctx context.Context, id string) (*entity.Device, error) {
+	return s.deviceRepo.GetByID(ctx, id)
+}
+
+// TestConnection kiểm tra kết nối và cập nhật trạng thái online/offline
+func buildProtocolCapabilities(deviceType string, admsEnabled bool, portNum int) []string {
+	deviceType = strings.ToLower(strings.TrimSpace(deviceType))
+	if deviceType == string(entity.DeviceTypeZKTeco) {
+		caps := []string{
+			"Kết nối TCP/IP tới thiết bị qua cổng " + fmt.Sprintf("%d", portNum),
+			"Đọc trạng thái firmware, số người dùng và số log",
+			"Đẩy nhân viên lên máy bằng ZKemKeeper/COM SDK",
+			"Đẩy template vân tay bằng SetUserTmpExStr / GetUserTmpExStr",
+			"Kích hoạt quét vân tay và đăng ký ngón tay qua SDK",
+			"Đọc log chấm công và gửi lệnh reboot/reset",
+		}
+		if admsEnabled {
+			caps = append(caps,
+				"Hỗ trợ ADMS Push qua cdata/getrequest/devicecmd",
+				"Chạy song song ADMS Push và SDK Pull để nhận ATTLOG, tự loại bản ghi trùng",
+			)
+		}
+		return caps
+	}
+	if deviceType == string(entity.DeviceTypeSunbeam) {
+		return []string{
+			"Giao tiếp HTTP Digest Auth tới thiết bị",
+			"Đồng bộ người dùng và log chấm công",
+			"Hỗ trợ đẩy template vân tay và xác thực",
+		}
+	}
+	if deviceType == string(entity.DeviceTypeHikvision) {
+		return []string{
+			"Kết nối qua HTTP/HTTPS và Digest Auth",
+			"Đọc trạng thái thiết bị và log chấm công",
+			"Đẩy/nhận dữ liệu người dùng và vân tay",
+		}
+	}
+	return []string{"Giao thức thiết bị chưa được cấu hình chi tiết"}
+}
+
+func buildProtocolActions(deviceType string, admsEnabled bool) []string {
+	deviceType = strings.ToLower(strings.TrimSpace(deviceType))
+	if deviceType == string(entity.DeviceTypeZKTeco) {
+		actions := []string{"Test kết nối", "Đồng bộ nhân viên", "Đồng bộ chấm công", "Reboot", "Reset", "Quét vân tay"}
+		if admsEnabled {
+			actions = append(actions, "ADMS Push + SDK Pull ATTLOG")
+		}
+		return actions
+	}
+	return []string{"Test kết nối", "Đồng bộ", "Đọc log"}
+}
+
+func (s *DeviceService) TestConnection(ctx context.Context, id string) (port.DeviceStatus, error) {
+	d, err := s.deviceRepo.GetByID(ctx, id)
+	if err != nil {
+		return port.DeviceStatus{}, err
+	}
+
+	protocolInfo := buildProtocolCapabilities(string(d.DeviceType), d.ADMSEnabled, d.Port)
+	protocolActions := buildProtocolActions(string(d.DeviceType), d.ADMSEnabled)
+	protocolSummary := "Giao thức hiện tại: " + strings.Join(protocolInfo[:min(len(protocolInfo), 3)], " • ")
+	if len(protocolInfo) > 3 {
+		protocolSummary += "..."
+	}
+
+	if isADMSDevice(d) {
+		// Cho thiết bị ADMS, kiểm tra Heartbeat gần nhất (trong vòng 10 phút để tránh offline nhầm do độ trễ hoặc lệch múi giờ)
+		online := isDeviceOnline(d.LastHeartbeatAt, 10*time.Minute)
+		status := "offline"
+		if online {
+			status = "online"
+		}
+		_ = s.deviceRepo.UpdateStatus(ctx, id, status, time.Now())
+		return port.DeviceStatus{
+			Online:          online,
+			FirmwareInfo:    d.FirmwareVersion,
+			UserCount:       0,
+			LogCount:        0,
+			ProtocolInfo:    protocolInfo,
+			ProtocolActions: protocolActions,
+			ProtocolSummary: protocolSummary,
+		}, nil
+	}
+
+	adapter, err := s.factory.NewAdapter(d.DeviceType)
+	if err != nil {
+		return port.DeviceStatus{}, err
+	}
+
+	cfg := port.DeviceConfig{
+		IPAddress: d.IPAddress,
+		Port:      d.Port,
+		Username:  d.Username,
+		Password:  d.Password,
+		Timeout:   5 * time.Second,
+	}
+	if err := adapter.Connect(ctx, cfg); err != nil {
+		_ = s.deviceRepo.UpdateStatus(ctx, id, "offline", time.Now())
+		return port.DeviceStatus{}, err
+	}
+	defer adapter.Disconnect(ctx)
+
+	status, err := adapter.CheckStatus(ctx)
+	if err != nil {
+		_ = s.deviceRepo.UpdateStatus(ctx, id, "offline", time.Now())
+		return port.DeviceStatus{}, err
+	}
+
+	newStatus := "offline"
+	if status.Online {
+		newStatus = "online"
+	}
+	_ = s.deviceRepo.UpdateStatus(ctx, id, newStatus, time.Now())
+	status.ProtocolInfo = protocolInfo
+	status.ProtocolActions = protocolActions
+	status.ProtocolSummary = protocolSummary
+	return status, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (s *DeviceService) RebootDevice(ctx context.Context, id string) error {
+	d, err := s.deviceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if isADMSDevice(d) {
+		if s.commandRepo == nil {
+			return fmt.Errorf("ADMS command repository is not configured")
+		}
+		// Đưa lệnh RESTART vào hàng đợi lệnh cho thiết bị ADMS
+		_, err := s.commandRepo.Enqueue(ctx, d.ID, "RESTART")
+		return err
+	}
+
+	adapter, err := s.factory.NewAdapter(d.DeviceType)
+	if err != nil {
+		return err
+	}
+	cfg := port.DeviceConfig{
+		IPAddress: d.IPAddress,
+		Port:      d.Port,
+		Username:  d.Username,
+		Password:  d.Password,
+		Timeout:   5 * time.Second,
+	}
+	if err := adapter.Connect(ctx, cfg); err != nil {
+		return err
+	}
+	defer adapter.Disconnect(ctx)
+	return adapter.Reboot(ctx)
+}
+
+// ListPendingCommands trả về danh sách lệnh pending cho thiết bị (dùng để debug)
+func (s *DeviceService) ListPendingCommands(ctx context.Context, deviceID string) ([]map[string]any, error) {
+	if s.commandRepo == nil {
+		return nil, fmt.Errorf("command repository not configured")
+	}
+	cmds, err := s.commandRepo.GetPending(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(cmds))
+	for _, c := range cmds {
+		out = append(out, map[string]any{
+			"id":         c.ID,
+			"command_id": c.CommandID,
+			"command":    c.Command,
+			"status":     c.Status,
+			"created_at": c.CreatedAt,
+			"sent_at":    c.SentAt,
+			"acked_at":   c.AckedAt,
+		})
+	}
+	return out, nil
+}
+
+// CancelPendingCommands cancels pending queued commands for a device and returns how many were cancelled
+func (s *DeviceService) CancelPendingCommands(ctx context.Context, deviceID string) (int, error) {
+	if s.commandRepo == nil {
+		return 0, fmt.Errorf("command repository not configured")
+	}
+	return s.commandRepo.CancelPendingByDevice(ctx, deviceID)
+}
